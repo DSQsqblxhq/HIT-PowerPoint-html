@@ -38,7 +38,7 @@
 - 该许可的版权署名：Copyright (c) 2025 Zara Zhang。
 - 核实的许可文件 Git blob SHA：`746da6896f2da755b5b54987b4f29a7eea1320b5`。
 
-该示例目录拥有独立 MIT 许可，不能仅根据 Open Design 仓库根目录的 Apache-2.0 许可判断示例的许可。为保留参考实现的署名和许可信息，本仓库附上 [MIT 原文](licenses/open-design-fs-notebook-tabs-MIT.txt)，并在 HTML 注释中保留相同许可。
+该示例目录拥有独立 MIT 许可，不能仅根据 Open Design 仓库根目录的 Apache-2.0 许可判断示例的许可。为保留参考实现的署名和许可信息，本仓库附上 [MIT 原文](../licenses/open-design-fs-notebook-tabs-MIT.txt)，并在 HTML 注释中保留相同许可。
 
 这里引用的 MIT 许可仅对应相关上游参考内容，不表示 HIT-HTML 的全部代码、PPT 版式、字体或学校标识统一采用 MIT。
 

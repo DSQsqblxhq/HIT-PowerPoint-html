@@ -4,7 +4,7 @@
 
 参考 [yhao-z/HIT-PowerPoint](https://github.com/yhao-z/HIT-PowerPoint) 的 PPT 模板制作，放映交互参考 [Open Design · fs-notebook-tabs](https://github.com/nexu-io/open-design/tree/main/plugins/_official/examples/fs-notebook-tabs)。HTML 版本由 [DSQsqblxhq](https://github.com/DSQsqblxhq) 整理与维护。
 
-本项目为个人整理的模板，与哈尔滨工业大学官方发布渠道无隶属关系。原 PPT 及其他参考资料的来源、署名和许可范围见 [来源与第三方说明](THIRD_PARTY_NOTICES.md)。
+本项目为个人整理的模板，与哈尔滨工业大学官方发布渠道无隶属关系。原 PPT 及其他参考资料的来源、署名和许可范围见 [来源与第三方说明](docs/THIRD_PARTY_NOTICES.md)。
 
 ## 快速开始
 
@@ -63,7 +63,7 @@ GitHub 文件页面显示的是 HTML 源码；请下载文件后再打开。日�
 | --- | --- |
 | [HIT-HTML.html](HIT-HTML.html) | 可离线打开的演示模板 |
 | [docs/USAGE.md](docs/USAGE.md) | 页面、章节、讲稿和 PDF 导出说明 |
-| [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) | 来源、致谢与许可范围 |
+| [THIRD_PARTY_NOTICES.md](docs/THIRD_PARTY_NOTICES.md) | 来源、致谢与许可范围 |
 | [licenses/open-design-fs-notebook-tabs-MIT.txt](licenses/open-design-fs-notebook-tabs-MIT.txt) | Open Design 参考示例的 MIT 许可原文 |
 
 ## 来源与许可
@@ -72,6 +72,6 @@ GitHub 文件页面显示的是 HTML 源码；请下载文件后再打开。日�
 
 [上游 issue #2](https://github.com/yhao-z/HIT-PowerPoint/issues/2) 记录了当前维护者对 HTML 版本独立维护及提交介绍链接 PR 的支持。该沟通不代表原始 PPT 作者或学校对全部设计、字形和标识的统一许可。
 
-本仓库暂不对全部文件声明统一开源许可证。随附 MIT 许可仅对应 Open Design 的 `fs-notebook-tabs` 参考示例，不扩展至 PPT 设计、学校标识、字形素材或本项目全部内容。各项具体说明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+本仓库暂不对全部文件声明统一开源许可证。随附 MIT 许可仅对应 Open Design 的 `fs-notebook-tabs` 参考示例，不扩展至 PPT 设计、学校标识、字形素材或本项目全部内容。各项具体说明见 [THIRD_PARTY_NOTICES.md](docs/THIRD_PARTY_NOTICES.md)。
 
 如果你是相关作品的权利人，或掌握原始作者及授权资料，欢迎通过仓库 Issue 补充，便于完善署名和使用说明。
