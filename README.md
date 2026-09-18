@@ -1,29 +1,58 @@
+<div align="center">
+
 # HIT-PowerPoint-html
 
-哈尔滨工业大学学术汇报 HTML 模板（HIT-HTML）。下载后在浏览器中打开即可放映，适用于组会、课程展示和论文答辩。
+**哈尔滨工业大学学术汇报 HTML 模板**
 
-参考 [yhao-z/HIT-PowerPoint](https://github.com/yhao-z/HIT-PowerPoint) 的 PPT 模板制作，放映交互参考 [Open Design · fs-notebook-tabs](https://github.com/nexu-io/open-design/tree/main/plugins/_official/examples/fs-notebook-tabs)。HTML 版本由 [DSQsqblxhq](https://github.com/DSQsqblxhq) 整理与维护。
+[点击预览](https://dsqsqblxhq.github.io/HIT-PowerPoint-html/HIT-HTML.html) · [下载文件](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.0.0/HIT-HTML.html)
 
-本项目为个人整理的模板，与哈尔滨工业大学官方发布渠道无隶属关系。原 PPT 及其他参考资料的来源、署名和许可范围见 [来源与第三方说明](docs/THIRD_PARTY_NOTICES.md)。
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+
+本项目为个人整理，与哈尔滨工业大学官方发布渠道无隶属关系。原 PPT 及其他参考资料的来源、署名和许可范围见 [来源与第三方说明](docs/THIRD_PARTY_NOTICES.md)。
+
+</div>
+
+## 预览
+
+<table>
+  <tr>
+    <td align="center">
+      <a href="https://dsqsqblxhq.github.io/HIT-PowerPoint-html/HIT-HTML.html#/1">
+        <img src="docs/screenshots/toc.png" alt="目录页" width="480">
+      </a>
+      <br>
+      <sub>目录页</sub>
+    </td>
+    <td align="center">
+      <a href="https://dsqsqblxhq.github.io/HIT-PowerPoint-html/HIT-HTML.html#/7">
+        <img src="docs/screenshots/master.png" alt="母版页" width="480">
+      </a>
+      <br>
+      <sub>母版页</sub>
+    </td>
+  </tr>
+</table>
 
 ## 快速开始
 
-1. 点击本仓库的 **Code → Download ZIP**，解压文件。
-2. 用浏览器打开 `HIT-HTML.html`，无须安装依赖或启动服务器。
-3. 用文本编辑器修改标题、人员信息、页面正文及讲稿，保存后刷新浏览器。
+- **在线预览**：直接访问 [HIT-PowerPoint-html](https://dsqsqblxhq.github.io/HIT-PowerPoint-html/HIT-HTML.html)。
+- **本地使用**：下载[HIT-HTML.html](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.0.0/HIT-HTML.html)，用浏览器打开。
+- **编辑模板**：用文本编辑器修改标题、正文、讲稿，保存后刷新浏览器。
 
-GitHub 文件页面显示的是 HTML 源码；请下载文件后再打开。日常使用可以只携带 HTML 文件，转交或再分发时请同时保留相关来源与许可说明。
+日常使用可以只修改 HTML 文件，转交或再分发时请同时保留相关来源与许可说明。
+
 
 ## 功能
 
-- 单个 HTML 文件，样式、脚本、建筑标志 SVG 和固定校名字形资源内嵌，可离线放映。
-- 1920 × 1080 固定画布，按窗口大小缩放，页面比例为 16:9。
-- 8 页初始模板：封面、目录、章节页、正文、双栏、表格、结束页和空白母版。
-- 自动目录、章节导航、页码和页面地址定位。
-- 键盘、滚轮、触摸滑动及底部按钮翻页，全屏放映。
-- 与当前页面同步的讲稿侧栏，支持建议时长、来源说明和引用文献。
-- 全程排练计时，支持开始、暂停、继续和重置。
-- 打印样式，可通过浏览器打印或另存为 PDF。
+| 功能 | 说明 |
+|------|------|
+| 单文件离线放映 | 样式、脚本、SVG 资源全部内嵌 |
+| 16:9 固定画布 | 1920×1080，自动缩放 |
+| 8 页初始模板 | 封面、目录、章节页、正文、双栏、表格、结束页、空白母版 |
+| 讲稿侧栏 | 与当前页面同步，支持建议时长和文献引用 |
+| 排练计时 | 开始、暂停、继续、重置 |
+| 打印样式 | 可通过浏览器打印或另存为 PDF |
+
 
 ## 操作速查
 
@@ -57,21 +86,17 @@ GitHub 文件页面显示的是 HTML 源码；请下载文件后再打开。日�
 
 完整编辑说明见 [使用指南](docs/USAGE.md)。模板中的文字、人员信息和实验数据均为占位内容，请替换后使用。
 
-## 文件说明
-
-| 文件 | 用途 |
-| --- | --- |
-| [HIT-HTML.html](HIT-HTML.html) | 可离线打开的演示模板 |
-| [docs/USAGE.md](docs/USAGE.md) | 页面、章节、讲稿和 PDF 导出说明 |
-| [THIRD_PARTY_NOTICES.md](docs/THIRD_PARTY_NOTICES.md) | 来源、致谢与许可范围 |
-| [licenses/open-design-fs-notebook-tabs-MIT.txt](licenses/open-design-fs-notebook-tabs-MIT.txt) | Open Design 参考示例的 MIT 许可原文 |
-
 ## 来源与许可
 
-原 PPT 仓库注明其模板基于哈工大 PPT 大赛的“三生万物”模板制作，原作者身份及原始公众号链接尚未补全。本项目保留该来源记录，并感谢原模板作者、yhao-z 和 Open Design 相关贡献者。
+- 灵感来源：[yhao-z/HIT-PowerPoint](https://github.com/yhao-z/HIT-PowerPoint)
+- 本仓库代码（HTML/CSS/JS）：[MIT](./LICENSE)
+- 第三方代码与素材：
+  - `fs-notebook-tabs` 组件：MIT 许可证，详见 [licenses/open-design-fs-notebook-tabs-MIT.txt](./licenses/open-design-fs-notebook-tabs-MIT.txt)
 
-[上游 issue #2](https://github.com/yhao-z/HIT-PowerPoint/issues/2) 记录了当前维护者对 HTML 版本独立维护及提交介绍链接 PR 的支持。该沟通不代表原始 PPT 作者或学校对全部设计、字形和标识的统一许可。
+原 PPT 仓库注明其模板基于哈工大 PPT 大赛的“三生万物”模板制作，原作者身份及原始公众号链接尚未补全。
+本项目保留该来源记录，并感谢原模板作者、yhao-z 和 Open Design 相关贡献者。
 
-本仓库暂不对全部文件声明统一开源许可证。随附 MIT 许可仅对应 Open Design 的 `fs-notebook-tabs` 参考示例，不扩展至 PPT 设计、学校标识、字形素材或本项目全部内容。各项具体说明见 [THIRD_PARTY_NOTICES.md](docs/THIRD_PARTY_NOTICES.md)。
+本仓库暂不对全部文件声明统一开源许可证。随附 MIT 许可仅对应 Open Design 的 `fs-notebook-tabs` 参考示例，不扩展至 PPT 设计、学校标识、字形素材或本项目全部内容。
+各项具体说明见 [THIRD_PARTY_NOTICES.md](docs/THIRD_PARTY_NOTICES.md)。
 
 如果你是相关作品的权利人，或掌握原始作者及授权资料，欢迎通过仓库 Issue 补充，便于完善署名和使用说明。
