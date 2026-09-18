@@ -1,0 +1,52 @@
+name: Update Preview Screenshots
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  screenshot:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Playwright
+        run: |
+          npm install playwright
+          npx playwright install chromium
+
+      - name: Take screenshots
+        run: |
+          mkdir -p docs/screenshots
+          node -e "
+          const { chromium } = require('playwright');
+          (async () => {
+            const browser = await chromium.launch();
+            const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+
+            // 目录页（第 1 页）
+            await page.goto('https://dsqsqblxhq.github.io/HIT-PowerPoint-html/HIT-HTML.html#/1', { waitUntil: 'networkidle' });
+            await page.waitForTimeout(2000);
+            await page.screenshot({ path: 'docs/screenshots/toc.png' });
+
+            // 母版页（第 7 页）
+            await page.goto('https://dsqsqblxhq.github.io/HIT-PowerPoint-html/HIT-HTML.html#/7', { waitUntil: 'networkidle' });
+            await page.waitForTimeout(2000);
+            await page.screenshot({ path: 'docs/screenshots/master.png' });
+
+            await browser.close();
+          })();
+          "
+
+      - name: Commit screenshots
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Update preview screenshots"
+          file_pattern: "docs/screenshots/*.png"
