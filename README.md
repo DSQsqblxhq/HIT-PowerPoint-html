@@ -17,6 +17,22 @@
 <table>
   <tr>
     <td align="center">
+      <a href="https://dsqsqblxhq.github.io/HIT-PowerPoint-html/HIT-HTML.html#/0">
+        <img src="docs/screenshots/cover.png" alt="封面页" width="480">
+      </a>
+      <br>
+      <sub>封面页</sub>
+    </td>
+    <td align="center">
+      <a href="https://dsqsqblxhq.github.io/HIT-PowerPoint-html/HIT-HTML.html#/6">
+        <img src="docs/screenshots/ending.png" alt="结尾页" width="480">
+      </a>
+      <br>
+      <sub>结尾页</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
       <a href="https://dsqsqblxhq.github.io/HIT-PowerPoint-html/HIT-HTML.html#/1">
         <img src="docs/screenshots/toc.png" alt="目录页" width="480">
       </a>
@@ -75,7 +91,7 @@
 
 | 内容 | HTML 中的位置 |
 | --- | --- |
-| 题目、姓名、单位和日期 | 封面与结束页的 `cover-meta` 和标题 |
+| 题目、姓名、单位和日期 | 封面的 `cover-meta`、封面与结束页的标题 |
 | 页面正文 | 各个 `section.slide` |
 | 章节名称和跳转页码 | `CONFIG.sections` |
 | 页面所属章节 | `data-section` 属性 |

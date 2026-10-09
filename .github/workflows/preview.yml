@@ -13,7 +13,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 新增：安装中文字体
       - name: Install CJK fonts
         run: |
           sudo apt-get update
@@ -32,25 +31,44 @@ jobs:
       - name: Take screenshots
         run: |
           mkdir -p docs/screenshots
-          node -e "
+          node <<'NODE'
           const { chromium } = require('playwright');
+          const path = require('node:path');
+          const { pathToFileURL } = require('node:url');
+
           (async () => {
             const browser = await chromium.launch();
-            const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+            try {
+              const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+              const base = pathToFileURL(path.resolve('HIT-HTML.html')).href;
+              const targets = [
+                { index: 0, name: 'cover' },  // 封面页
+                { index: 6, name: 'ending' }, // 结尾页
+                { index: 1, name: 'toc' },    // 目录页
+                { index: 7, name: 'master' }  // 母版页
+              ];
 
-            // 目录页（第 1 页）
-            await page.goto('https://dsqsqblxhq.github.io/HIT-PowerPoint-html/HIT-HTML.html#/1', { waitUntil: 'networkidle' });
-            await page.waitForTimeout(2000);
-            await page.screenshot({ path: 'docs/screenshots/toc.png' });
-
-            // 母版页（第 7 页）
-            await page.goto('https://dsqsqblxhq.github.io/HIT-PowerPoint-html/HIT-HTML.html#/7', { waitUntil: 'networkidle' });
-            await page.waitForTimeout(2000);
-            await page.screenshot({ path: 'docs/screenshots/master.png' });
-
-            await browser.close();
-          })();
-          "
+              for (const target of targets) {
+                await page.goto(base + '#/' + target.index, { waitUntil: 'load' });
+                await page.waitForFunction(
+                  index => document.querySelectorAll('.slide')[index]?.classList.contains('active'),
+                  target.index
+                );
+                await page.evaluate(() => document.fonts.ready);
+                await page.addStyleTag({ content: '.controls,.notes-panel{display:none!important}' });
+                await page.screenshot({
+                  path: 'docs/screenshots/' + target.name + '.png',
+                  animations: 'disabled'
+                });
+              }
+            } finally {
+              await browser.close();
+            }
+          })().catch(error => {
+            console.error(error);
+            process.exit(1);
+          });
+          NODE
 
       - name: Commit screenshots
         uses: stefanzweifel/git-auto-commit-action@v5
