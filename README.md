@@ -4,7 +4,7 @@
 
 **哈尔滨工业大学学术汇报 HTML 模板**
 
-[点击预览](https://dsqsqblxhq.github.io/HIT-PowerPoint-html/HIT-HTML.html) · [下载文件](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.0.0/HIT-HTML.html)
+[点击预览](https://dsqsqblxhq.github.io/HIT-PowerPoint-html/HIT-HTML.html) · [下载文件](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.1/HIT-HTML.html)
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
@@ -52,7 +52,7 @@
 ## 快速开始
 
 - **在线预览**：直接访问 [HIT-PowerPoint-html](https://dsqsqblxhq.github.io/HIT-PowerPoint-html/HIT-HTML.html)。
-- **本地使用**：下载[HIT-HTML.html](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.0.0/HIT-HTML.html)，用浏览器打开。
+- **本地使用**：下载[HIT-HTML.html](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.1/HIT-HTML.html)，用浏览器打开。
 - **编辑模板**：用文本编辑器修改标题、正文、讲稿，保存后刷新浏览器。
 
 日常使用可以只修改 HTML 文件，转交或再分发时请同时保留相关来源与许可说明。
