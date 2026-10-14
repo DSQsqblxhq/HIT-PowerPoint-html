@@ -315,11 +315,28 @@ const $=id=>document.getElementById(id);
 const consolePanel=$('presenter-console'),workspace=$('presenter-workspace');
 const urlParams=new URL(location.href).searchParams;
 const uid=()=>globalThis.crypto?.randomUUID?.()||Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
-const session=urlParams.get('hit-session')||uid(),sender=uid();
 const deckKey=location.origin+location.pathname,namespace='hit-presenter-v1';
+const sessionStorageKey=namespace+':window-session:'+deckKey;
+const savedWindow=history.state?.[namespace];
+const savedContext=savedWindow?.deckKey===deckKey?savedWindow:null;
+let role=['presenter','audience'].includes(urlParams.get('role'))?urlParams.get('role'):
+ (!urlParams.has('role')&&['presenter','audience'].includes(savedContext?.role)?savedContext.role:'deck');
+/* 会话保存在窗口和浏览器内部，不放入可见 URL；旧链接的参数仅用于迁移。 */
+function windowSession(){
+ if(typeof savedContext?.session==='string'&&savedContext.session)return savedContext.session;
+ const named=/^hit-(?:deck|presenter|audience)-([a-zA-Z0-9-]+)$/.exec(window.name);
+ if(named)return named[1];
+ if(role==='audience')try{return sessionStorage.getItem(sessionStorageKey)}catch{}
+ return null;
+}
+const session=urlParams.get('hit-session')||windowSession()||uid(),sender=uid();
+function rememberSession(){
+ try{sessionStorage.setItem(sessionStorageKey,session)}catch{}
+ // window.open 的窗口名称在播放窗加载前即可传递会话，file 模式也可使用。
+ try{window.name='hit-'+role+'-'+session}catch{}
+}
 const syncKey=namespace+':'+deckKey+':'+session,settingsKey=namespace+':settings:'+deckKey;
 const snapshotKey=syncKey+':state',targetOrigin=location.protocol==='file:'||location.origin==='null'?'*':location.origin;
-let role=['presenter','audience'].includes(urlParams.get('role'))?urlParams.get('role'):'deck';
 const openedAsPopup=role==='audience'&&!!window.opener;
 let peerWindow=role==='audience'?window.opener:null,peerCreated=false,connected=false,lastPeerAt=0;
 let current=0,wheelLock=0,touchStart=null,controlsTimer;
@@ -363,7 +380,7 @@ function show(index,updateHash=true,sync=true,resetPage=true){
  $('prev').disabled=current===0;$('next').disabled=current===slides.length-1;
  $('announcement').textContent=`第 ${current+1} 页，共 ${slides.length} 页，${slides[current].getAttribute('aria-label')}`;
  if(role==='presenter')updatePresenter();renderTimer();
- if(updateHash&&location.hash!=='#/'+current)history.replaceState(null,'','#/'+current);
+ if(updateHash&&location.hash!=='#/'+current)history.replaceState(history.state,'','#/'+current);
  if(sync){if(role==='presenter')sendState();else if(role==='audience')send('navigate',{index:current})}
  saveSnapshot();
 }
@@ -596,7 +613,7 @@ function popupBox(screen){
  const s=screenBox(screen||window.screen),width=Math.min(s.width,Math.max(400,Math.floor(s.width*.9))),height=Math.min(s.height,Math.max(300,Math.floor(s.height*.88)));
  return{left:Math.round(s.left+(s.width-width)/2),top:Math.round(s.top+(s.height-height)/2),width,height,label:s.label,screenLeft:s.left,screenTop:s.top};
 }
-function audienceURL(){const url=new URL(location.href);url.searchParams.set('role','audience');url.searchParams.set('hit-session',session);url.hash='/'+current;return url.href}
+function audienceURL(){const url=new URL(location.href);url.searchParams.delete('hit-session');url.searchParams.set('role','audience');url.hash='/'+current;return url.href}
 async function openAudience(){
  if(role!=='presenter'||launchInProgress)return;
  launchInProgress=true;placementPending=true;pendingAutoFullscreen=true;
@@ -686,10 +703,17 @@ async function fullscreen(){
 
 /* 主窗口使用演讲者工作台，观众窗口只显示幻灯片。 */
 function roleURL(mode){
- const url=new URL(location.href);
- if(mode==='deck'){url.searchParams.delete('role');url.searchParams.delete('hit-session')}else{url.searchParams.set('role',mode);url.searchParams.set('hit-session',session)}
- // 部分浏览器不允许 file URL 用 replaceState 修改查询参数；功能不依赖此项。
- try{history.replaceState(null,'',url.href)}catch{}
+ rememberSession();
+ const url=new URL(location.href);url.searchParams.delete('hit-session');
+ if(mode==='deck')url.searchParams.delete('role');else url.searchParams.set('role',mode);
+ const previous=history.state;
+ const next=previous&&typeof previous==='object'&&!Array.isArray(previous)?{...previous}:{};
+ next[namespace]={deckKey,session,role:mode};
+ try{history.replaceState(next,'',url.href)}catch{
+  // 少数浏览器限制 file URL 的查询参数修改，仍保存刷新所需的内部会话。
+  try{history.replaceState(next,'')}catch{}
+  if(new URL(location.href).searchParams.has('hit-session'))location.replace(url.href);
+ }
 }
 function setMode(mode){
  if(role==='audience'&&mode!=='audience'&&document.fullscreenElement)document.exitFullscreen().catch(()=>{});
@@ -817,12 +841,14 @@ setInterval(()=>{
  }
 },1000);
 
-fitStage();show(indexFromHash(),true,false,false);
+const restored=role!=='deck'?readStored(snapshotKey):null;
+roleURL(role);fitStage();show(indexFromHash(),true,false,false);
 if(role!=='deck'){
- const restored=urlParams.has('hit-session')?readStored(snapshotKey):null;if(restored)applyState(restored);
+ if(restored)applyState(restored);
  setMode(role);send('ready',{geometry:geometry(),fullscreen:!!document.fullscreenElement});
 }else{document.documentElement.dataset.role='deck';controls()}
 
 </script>
 </body>
 </html>
+
