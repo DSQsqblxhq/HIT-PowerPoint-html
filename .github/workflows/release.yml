@@ -1,4 +1,4 @@
-name: Publish v1.1 Release
+name: Publish v1.2 Release
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: release-v1.1
+  group: release-v1.2
   cancel-in-progress: false
 
 jobs:
@@ -18,30 +18,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Upload, verify and publish v1.1
+      - name: Upload, verify and publish v1.2
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           cat > "$RUNNER_TEMP/release-notes.md" <<'EOF'
-          新版哈尔滨工业大学学术汇报 HTML 模板。
+          新版哈尔滨工业大学学术汇报 HTML 模板，保留原有 HIT 配色与幻灯片风格。
 
-          - 更新工程蓝图风封面与结尾页，使用标准校徽、校名文字及主楼 SVG。
-          - 封面保留院系、导师、汇报人和汇报时间，移除“哈尔滨工业大学 · 学术汇报”。
-          - 结尾页校训与母版页保持一致，保留原有配色与视觉风格。
-          - 复用 SVG、裁剪内嵌字体并清理冗余样式，精简新版文件体积。
-          - 新增封面页和结尾页截图，README 按封面、结尾、目录、母版顺序展示 2×2 预览。
+          - 新增演讲者工作台：当前页与下一页预览、逐页讲稿、全程与本页计时、当前时钟、讲稿字号调节及可保存的卡片布局。
+          - 支持演讲者和观众双窗口同步翻页、屏幕选择与全屏放映；先完成浏览器屏幕权限询问，再打开观众窗口。
+          - 新增幻灯片总览，点击缩略图跳转；统一观众底栏，保留翻页、总览和全屏。
+          - 移除原“目录”“讲稿”底栏按钮及角色互换功能，讲稿改在工作台阅读。
+          - 已用时间数字为当前时钟数字字号的 1.5 倍；地址栏不再显示会话编号，刷新后可恢复同一放映会话。
+          - README 下载链接更新至 v1.2，预览按封面、结尾、母版、演讲者工作台排列，并更新使用说明。
 
           下载附件 `HIT-HTML.html` 后用浏览器打开，可离线放映。
           EOF
-          gh release create v1.1 HIT-HTML.html \
+          gh release create v1.2 HIT-HTML.html \
             --target "$GITHUB_SHA" \
-            --title "HIT-HTML v1.1" \
+            --title "HIT-HTML v1.2" \
             --notes-file "$RUNNER_TEMP/release-notes.md" \
             --draft
-          gh release download v1.1 \
+          gh release download v1.2 \
             --pattern HIT-HTML.html \
-            --dir "$RUNNER_TEMP/release-v1.1"
-          cmp HIT-HTML.html "$RUNNER_TEMP/release-v1.1/HIT-HTML.html"
-          gh release edit v1.1 --draft=false --latest
+            --dir "$RUNNER_TEMP/release-v1.2"
+          cmp HIT-HTML.html "$RUNNER_TEMP/release-v1.2/HIT-HTML.html"
+          gh release edit v1.2 --draft=false --latest
