@@ -1,4 +1,4 @@
-name: Publish v1.2 Release
+name: Publish or Update v1.2 Release
 
 on:
   push:
@@ -36,11 +36,15 @@ jobs:
 
           下载附件 `HIT-HTML.html` 后用浏览器打开，可离线放映。
           EOF
-          gh release create v1.2 HIT-HTML.html \
-            --target "$GITHUB_SHA" \
-            --title "HIT-HTML v1.2" \
-            --notes-file "$RUNNER_TEMP/release-notes.md" \
-            --draft
+          if gh release view v1.2 > /dev/null 2>&1; then
+            gh release upload v1.2 HIT-HTML.html --clobber
+          else
+            gh release create v1.2 HIT-HTML.html \
+              --target "$GITHUB_SHA" \
+              --title "HIT-HTML v1.2" \
+              --notes-file "$RUNNER_TEMP/release-notes.md" \
+              --draft
+          fi
           gh release download v1.2 \
             --pattern HIT-HTML.html \
             --dir "$RUNNER_TEMP/release-v1.2"
