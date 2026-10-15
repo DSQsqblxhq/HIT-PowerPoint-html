@@ -29,11 +29,12 @@ jobs:
 
           - 新增演讲者工作台：当前页与下一页预览、逐页讲稿、全程与本页计时、当前时钟、讲稿字号调节及可保存的卡片布局。
           - 支持演讲者和观众双窗口同步翻页、屏幕选择与全屏放映；先完成浏览器屏幕权限询问，再打开观众窗口。
+          - 修复工作台“副屏全屏”与 F 快捷键：直接让观众窗口全屏，无需在观众窗口再次点击；支持在线与本地 HTML。本地窗口刷新后若提示重连，再在工作台点击一次即可，当前页与计时会保留。
           - 新增幻灯片总览，点击缩略图跳转；统一观众底栏，保留翻页、总览和全屏。
           - 移除原“目录”“讲稿”底栏按钮及角色互换功能，讲稿改在工作台阅读。
           - 已用时间数字为当前时钟数字字号的 1.5 倍；地址栏不再显示会话编号，刷新后可恢复同一放映会话。
+          - 调整封面网格布局：中英文标题垂直居中、线条随标题宽度调整、信息按 2×2 排列。
           - README 下载链接更新至 v1.2，预览按封面、结尾、母版、演讲者工作台排列，并更新使用说明。
-
           - 演讲者模式参考 lewislulu/html-ppt-skill（MIT，作者 lewis），仓库与单文件已补充来源、署名及许可原文。
 
           下载附件 `HIT-HTML.html` 后用浏览器打开，可离线放映。
@@ -51,4 +52,5 @@ jobs:
             --pattern HIT-HTML.html \
             --dir "$RUNNER_TEMP/release-v1.2"
           cmp HIT-HTML.html "$RUNNER_TEMP/release-v1.2/HIT-HTML.html"
-          gh release edit v1.2 --draft=false --latest
+          gh release edit v1.2 --draft=false --latest --notes-file "$RUNNER_TEMP/release-notes.md"
+

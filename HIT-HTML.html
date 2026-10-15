@@ -275,7 +275,7 @@ button.p-preview:hover:not(:disabled){border-color:#4594ef}
    <div class="p-resize" aria-hidden="true"></div>
   </section>
  </main>
- <details class="p-help" id="presenter-help"><summary>双屏放映与讲稿说明</summary><p>将系统显示方式设为「扩展」，点击「识别屏幕」并允许浏览器管理窗口，可选择播放屏幕。启动时会先等待浏览器的屏幕权限询问结束，再打开播放窗并尝试全屏；若未全屏，在播放窗点击「全屏」。也可手动将播放窗拖到副屏。</p><p>讲稿与逐页时长沿用本文件的 NOTES 配置。计时会在播放窗首次进入全屏时开始，也可手动开始或暂停。拖动卡片标题可调整位置，拖动右下角可调整大小；「重置布局」恢复默认排布。</p></details>
+ <details class="p-help" id="presenter-help"><summary>双屏放映与讲稿说明</summary><p>将系统显示方式设为「扩展」，点击「识别屏幕」并允许浏览器管理窗口，可选择播放屏幕。启动时会先等待浏览器的屏幕权限询问结束，再打开播放窗并尝试全屏；可在工作台点击「副屏全屏」或按 F，也可手动将播放窗拖到副屏。</p><p>讲稿与逐页时长沿用本文件的 NOTES 配置。计时会在播放窗首次进入全屏时开始，也可手动开始或暂停。拖动卡片标题可调整位置，拖动右下角可调整大小；「重置布局」恢复默认排布。</p></details>
  <footer class="p-footer"><span>← → / ↑ ↓ 翻页 · Home / End 首末页 · O 播放窗 · F 副屏全屏 · G 总览 · R 重置计时 · Esc 退出</span><span class="p-motto">規格嚴格 功夫到家</span></footer>
 </section>
 
@@ -289,6 +289,8 @@ button.p-preview:hover:not(:disabled){border-color:#4594ef}
 <template id="brand-footer"><footer class="page-footer"><span class="motto">規格嚴格 功夫到家</span><div class="page-number"></div></footer></template>
 <script>
 'use strict';
+// 保存初始化前的完整文档，供本地播放窗继承主窗来源，支持点击授权传递。
+const fileAudienceMarkup=location.protocol==='file:'?'<!doctype html>\n'+document.documentElement.outerHTML:'';
 /* === 可编辑章节配置：page 为从 1 开始的目标页码 === */
 const CONFIG={width:1920,height:1080,sections:[{title:'研究背景',page:3},{title:'研究内容',page:4},{title:'实验结果',page:6},{title:'总结展望',page:7}]};
 /* === 放映控制：参考 Open Design 的固定画布、键盘 / 滚轮 / 触摸与 hash 导航 === */
@@ -378,6 +380,8 @@ let current=0,wheelLock=0,touchStart=null,controlsTimer;
 let elapsedMs=0,timerStart=null,pageElapsedMs=0,pageTimerStart=null,autoTimerPending=false;
 let screenDetails=null,screenRequest=null,selectedScreen='auto',audienceTarget=null;
 let launchInProgress=false,placementPending=false,pendingAutoFullscreen=false,lastGeometry=null,audienceFullscreen=false;
+let fullscreenRequest=null,fullscreenFeedback='',audienceSender=null;
+const retiredAudienceSenders=new Set();
 let seq=0,channel=null,initialized=false,layout=null,noteFontSize=19;
 const seen=new Set(),cards=[...workspace.querySelectorAll('.p-card')];
 function readStored(key){try{return JSON.parse(localStorage.getItem(key))}catch{return null}}
@@ -463,9 +467,10 @@ function applyState(data){
  show(data.index,true,false,false);
 }
 function saveSnapshot(){if(role==='presenter')writeStored(snapshotKey,state())}
+function message(type,payload={}){return{namespace,deckKey,session,sender,id:sender+':'+(++seq),role,type,...payload}}
 function send(type,payload={}){
  if(role==='deck')return;
- const msg={namespace,deckKey,session,sender,id:sender+':'+(++seq),role,type,...payload};
+ const msg=message(type,payload);
  try{channel?.postMessage(msg)}catch{}
  try{if(peerWindow&&!peerWindow.closed)peerWindow.postMessage(msg,targetOrigin)}catch{}
  try{localStorage.setItem(syncKey,JSON.stringify(msg))}catch{}
@@ -480,6 +485,10 @@ function geometry(){return{x:window.screenX,y:window.screenY,width:window.outerW
 function reportAudience(){if(role==='audience')send('geometry',{geometry:geometry(),fullscreen:!!document.fullscreenElement})}
 function handleMessage(data){
  if(!validMessage(data)||seen.has(data.id)||role==='deck')return;
+ if(role==='presenter'&&data.role==='audience'){
+  if(retiredAudienceSenders.has(data.sender))return;
+  if(data.type!=='closing')audienceSender=data.sender;
+ }
  seen.add(data.id);if(seen.size>240)seen.delete(seen.values().next().value);
  const wasConnected=connected;lastPeerAt=Date.now();
  if(role!==data.role)setConnection(true);
@@ -497,10 +506,18 @@ function handleMessage(data){
    if(role==='presenter'){lastGeometry=data.geometry||null;audienceFullscreen=!!data.fullscreen;setConnection(true);placementNotice()}
    break;
   case'fullscreen':
-   if(role==='presenter'){audienceFullscreen=!!data.fullscreen;setConnection(true);if(audienceFullscreen&&autoTimerPending)startTimer();placementNotice()}
+   if(role==='presenter'){
+    audienceFullscreen=!!data.fullscreen;
+    if(audienceFullscreen)finishFullscreenRequest(true);else{setConnection(true);placementNotice()}
+   }
    break;
   case'place':if(role==='audience')placeAudience(data.box,!!data.fullscreen);break;
-  case'fullscreen-request':if(role==='audience'){controls();fullscreenAudience(true)}break;
+  case'fullscreen-request':
+   if(role==='audience'){controls();fullscreenAudience(true).then(fullscreen=>send('fullscreen-result',{requestId:data.id,fullscreen}))}
+   break;
+  case'fullscreen-result':
+   if(role==='presenter'&&fullscreenRequest?.id===data.requestId)finishFullscreenRequest(!!data.fullscreen);
+   break;
   case'end':
    setMode('deck');setConnection(false);peerWindow=null;
    if(openedAsPopup)try{window.close()}catch{}
@@ -649,9 +666,32 @@ function popupBox(screen){
  return{left:Math.round(s.left+(s.width-width)/2),top:Math.round(s.top+(s.height-height)/2),width,height,label:s.label,screenLeft:s.left,screenTop:s.top};
 }
 function audienceURL(){const url=new URL(location.href);url.searchParams.delete('hit-session');url.searchParams.set('role','audience');url.hash='/'+current;return url.href}
+function writeFileAudience(target){
+ // document.open 继承调用方的本地来源；随后恢复干净的文件地址，刷新仍可直接加载。
+ const doc=target.document;doc.open();target.history.replaceState(null,'',audienceURL());
+ doc.write(fileAudienceMarkup);doc.close();
+}
+function retireAudience(){
+ if(audienceSender){retiredAudienceSenders.add(audienceSender);if(retiredAudienceSenders.size>64)retiredAudienceSenders.delete(retiredAudienceSenders.values().next().value)}
+ audienceSender=null;
+}
+function prepareFileAudience(target){
+ try{if(target.document.getElementById('stage'))return true}catch{}
+ // file 窗口刷新后来源会重新隔离；重建播放窗，并明确提示补充一次工作台点击授权。
+ const g=lastGeometry,box=chosenScreen()?popupBox(chosenScreen()):
+  g&&[g.x,g.y,g.width,g.height].every(Number.isFinite)&&g.width>0&&g.height>0?
+  {left:g.x,top:g.y,width:g.width,height:g.height}:popupBox(null);
+ const replacement=window.open('about:blank','_blank',`popup=yes,left=${box.left},top=${box.top},width=${box.width},height=${box.height}`);
+ if(!replacement)throw new Error('播放窗口被拦截');
+ replacement.name='hit-audience-'+session;retireAudience();peerWindow=replacement;peerCreated=true;audienceFullscreen=false;setConnection(false);
+ writeFileAudience(replacement);try{target.close()}catch{}try{window.focus()}catch{}
+ return false;
+}
 async function openAudience(){
  if(role!=='presenter'||launchInProgress)return;
  launchInProgress=true;placementPending=true;pendingAutoFullscreen=true;
+ if(fullscreenRequest?.timer)clearTimeout(fullscreenRequest.timer);
+ fullscreenRequest=null;fullscreenFeedback='';$('presenter-fullscreen').disabled=false;
  const button=$('presenter-open');
  button.disabled=true;button.textContent='等待屏幕权限';
  notice('请先处理浏览器的屏幕权限询问，随后打开播放窗口。');
@@ -660,8 +700,9 @@ async function openAudience(){
   if(role!=='presenter')return;
   const box=popupBox(chosenScreen());
   if(!peerWindow||peerWindow.closed){
-   peerWindow=window.open(audienceURL(),'hit-audience-'+session,`popup=yes,left=${box.left},top=${box.top},width=${box.width},height=${box.height}`);
+   retireAudience();peerWindow=window.open(fileAudienceMarkup?'about:blank':audienceURL(),'hit-audience-'+session,`popup=yes,left=${box.left},top=${box.top},width=${box.width},height=${box.height}`);
    peerCreated=!!peerWindow;setConnection(false);
+   if(peerWindow&&fileAudienceMarkup)writeFileAudience(peerWindow);
   }
   if(!peerWindow){
    pendingAutoFullscreen=false;
@@ -683,13 +724,15 @@ function placePeer(){
 }
 function placementNotice(){
  if(role!=='presenter')return;
+ if(fullscreenFeedback){notice(fullscreenFeedback);return}
+ if(audienceFullscreen){notice('播放窗口已进入全屏，主副屏翻页保持同步。');return}
  if(!screenDetails){
-  notice(window.screen.isExtended===false?'当前为单屏，可在独立窗口排练；连接副屏后点击「识别屏幕」。':'可将播放窗口拖到副屏，点击「全屏」；主副屏翻页会保持同步。');return;
+  notice(window.screen.isExtended===false?'当前为单屏，可在独立窗口排练；连接副屏后点击「识别屏幕」。':'可将播放窗口拖到副屏，在工作台点击「副屏全屏」或按 F；主副屏翻页会保持同步。');return;
  }
  if(screenDetails.screens.length<2){notice('检测到一块屏幕，可在独立窗口排练；连接副屏后重新选择播放屏幕。');return}
  const target=chosenScreen(),box=screenBox(target),g=lastGeometry;
  const inTarget=g&&Number.isFinite(g.x)&&Number.isFinite(g.y)&&g.x+g.width/2>=box.left&&g.x+g.width/2<box.left+box.width&&g.y+g.height/2>=box.top&&g.y+g.height/2<box.top+box.height;
- notice((inTarget?'已投放到「':'已选择「')+box.label+'」'+(audienceFullscreen?' · 正在全屏放映。':'；若未全屏，在播放窗点击「全屏」。'));
+ notice((inTarget?'已投放到「':'已选择「')+box.label+'」'+(audienceFullscreen?' · 正在全屏放映。':'；可在工作台点击「副屏全屏」或按 F。'));
 }
 async function detectScreens(){await requestScreens();if(role==='presenter'){placementNotice();placePeer()}}
 function validBox(box){return box&&['left','top','width','height'].every(k=>Number.isFinite(box[k]))&&box.width>0&&box.height>0}
@@ -711,7 +754,8 @@ async function placeAudience(box,attemptFullscreen){
  if(attemptFullscreen){await loadGrantedScreens();if(role==='audience')fullscreenAudience(true)}
 }
 async function fullscreenAudience(automatic=false){
- if(role!=='audience'||document.fullscreenElement)return;
+ if(role!=='audience')return false;
+ if(document.fullscreenElement)return true;
  let target=null;
  if(audienceTarget){
   if(!screenDetails&&!automatic)await requestScreens();
@@ -719,17 +763,41 @@ async function fullscreenAudience(automatic=false){
  }
  try{
   if(!document.documentElement.requestFullscreen)throw new Error('Fullscreen unavailable');
-  await document.documentElement.requestFullscreen(target?{screen:target,navigationUI:'hide'}:{navigationUI:'hide'});
+  await document.documentElement.requestFullscreen(target?{screen:target,navigationUI:'hide'}:{navigationUI:'hide'});return true;
  }catch{
-  if(target)try{await document.documentElement.requestFullscreen({navigationUI:'hide'});return}catch{}
+  if(target)try{await document.documentElement.requestFullscreen({navigationUI:'hide'});return true}catch{}
   controls();
-  send('fullscreen',{fullscreen:false});
+  send('fullscreen',{fullscreen:false});return false;
  }
+}
+function finishFullscreenRequest(success,reason=''){
+ if(fullscreenRequest?.timer)clearTimeout(fullscreenRequest.timer);
+ fullscreenRequest=null;$('presenter-fullscreen').disabled=false;
+ if(success){audienceFullscreen=true;fullscreenFeedback='';setConnection(true);if(autoTimerPending)startTimer()}
+ else fullscreenFeedback=reason||'浏览器未允许副屏全屏，请检查全屏权限后重试；也可在播放窗点击「全屏」。';
+ placementNotice();
+}
+async function requestAudienceFullscreen(){
+ if(fullscreenRequest)return;
+ if(!connected||!peerWindow||peerWindow.closed){notice('请先打开播放窗口，再进入副屏全屏。');return}
+ if(audienceFullscreen){placementNotice();return}
+ const target=peerWindow,msg=message('fullscreen-request');
+ fullscreenRequest={id:msg.id,timer:null};$('presenter-fullscreen').disabled=true;
+ fullscreenFeedback='正在请求副屏全屏…';placementNotice();
+ try{
+  if(fileAudienceMarkup&&!prepareFileAudience(target)){
+   finishFullscreenRequest(false,'播放窗口已重新连接，请再点击一次「副屏全屏」或按 F。');return;
+  }
+  if(role!=='presenter'||target.closed)throw new Error('播放窗口已关闭');
+  fullscreenRequest.timer=setTimeout(()=>finishFullscreenRequest(false,'播放窗口未响应全屏请求，请重新打开播放窗后重试。'),4000);
+  // 仅通过此 postMessage 传递授权，不能先由 BroadcastChannel/storage 抢先处理并去重。
+  try{target.postMessage(msg,{targetOrigin:location.protocol==='file:'?'/':targetOrigin,delegate:'fullscreen'})}
+  catch{target.postMessage(msg,targetOrigin)}
+ }catch{finishFullscreenRequest(false,'播放窗口未能就绪，请重新打开播放窗后重试。')}
 }
 async function fullscreen(){
  if(role==='presenter'){
-  if(!connected){notice('请先打开播放窗口，再进入副屏全屏。');return}
-  send('fullscreen-request');try{peerWindow?.focus()}catch{}notice('已请求副屏全屏；若浏览器需要操作确认，请在播放窗按 F。');return;
+  await requestAudienceFullscreen();return;
  }
  if(document.fullscreenElement){try{await document.exitFullscreen()}catch{};return}
  if(role==='audience'){await fullscreenAudience();return}
@@ -764,6 +832,8 @@ function enterPresenter(){
 }
 function exitPresenter(){
  if(role!=='presenter')return;
+ if(fullscreenRequest?.timer)clearTimeout(fullscreenRequest.timer);
+ fullscreenRequest=null;fullscreenFeedback='';$('presenter-fullscreen').disabled=false;
  send('end');
  if(peerCreated&&peerWindow&&!peerWindow.closed)try{peerWindow.close()}catch{}
  peerWindow=null;peerCreated=false;setConnection(false);setMode('deck');
