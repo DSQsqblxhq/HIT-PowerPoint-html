@@ -34,6 +34,8 @@ jobs:
           - 已用时间数字为当前时钟数字字号的 1.5 倍；地址栏不再显示会话编号，刷新后可恢复同一放映会话。
           - README 下载链接更新至 v1.2，预览按封面、结尾、母版、演讲者工作台排列，并更新使用说明。
 
+          - 演讲者模式参考 lewislulu/html-ppt-skill（MIT，作者 lewis），仓库与单文件已补充来源、署名及许可原文。
+
           下载附件 `HIT-HTML.html` 后用浏览器打开，可离线放映。
           EOF
           if gh release view v1.2 > /dev/null 2>&1; then

@@ -113,14 +113,16 @@
 ## 来源与许可
 
 - 灵感来源：[yhao-z/HIT-PowerPoint](https://github.com/yhao-z/HIT-PowerPoint)
+- 演讲者模式参考：[lewislulu/html-ppt-skill](https://github.com/lewislulu/html-ppt-skill)，包括工作台布局、当前页与下一页预览、讲稿、计时及双窗口同步放映等交互。
 - 本仓库代码（HTML/CSS/JS）：[MIT](./LICENSE)
 - 第三方代码与素材：
   - `fs-notebook-tabs` 组件：MIT 许可证，详见 [licenses/open-design-fs-notebook-tabs-MIT.txt](./licenses/open-design-fs-notebook-tabs-MIT.txt)
+  - `html-ppt-skill` 演讲者模式参考：MIT 许可证，作者 lewis，详见 [licenses/html-ppt-skill-MIT.txt](./licenses/html-ppt-skill-MIT.txt)
 
 原 PPT 仓库注明其模板基于哈工大 PPT 大赛的“三生万物”模板制作，原作者身份及原始公众号链接尚未补全。
-本项目保留该来源记录，并感谢原模板作者、yhao-z 和 Open Design 相关贡献者。
+本项目保留该来源记录，并感谢原模板作者、yhao-z、Open Design 相关贡献者及 html-ppt-skill 作者 lewis。
 
-本仓库暂不对全部文件声明统一开源许可证。随附 MIT 许可仅对应 Open Design 的 `fs-notebook-tabs` 参考示例，不扩展至 PPT 设计、学校标识、字形素材或本项目全部内容。
+本仓库暂不对全部文件声明统一开源许可证。随附第三方 MIT 许可分别对应 Open Design 的 `fs-notebook-tabs` 参考示例及 `html-ppt-skill` 演讲者模式参考内容，不扩展至 PPT 设计、学校标识、字形素材或本项目全部内容。
 各项具体说明见 [THIRD_PARTY_NOTICES.md](docs/THIRD_PARTY_NOTICES.md)。
 
 如果你是相关作品的权利人，或掌握原始作者及授权资料，欢迎通过仓库 Issue 补充，便于完善署名和使用说明。

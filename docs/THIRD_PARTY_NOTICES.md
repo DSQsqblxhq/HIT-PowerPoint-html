@@ -1,6 +1,6 @@
 # 来源、致谢与第三方说明
 
-整理日期：2026-09-16。本文记录当前已知来源；不会将未核实的作者、素材来源或许可补写为已确认事实。
+整理日期：2026-09-16；最近更新：2026-10-15。本文记录当前已知来源；不会将未核实的作者、素材来源或许可补写为已确认事实。
 
 ## 1. HTML 版本
 
@@ -8,7 +8,7 @@
 - 项目仓库：[DSQsqblxhq/HIT-PowerPoint-html](https://github.com/DSQsqblxhq/HIT-PowerPoint-html)。
 - 整理与维护：[DSQsqblxhq](https://github.com/DSQsqblxhq)。
 - 本次整理以维护者提供的 `HIT-HTML.html` 为基础，补充仓库文档、来源注释及参考示例许可原文。
-- 演示页内容、版式、内嵌资源和放映脚本保持与所提供 HTML 一致。
+- 当前版本在原 HTML 基础上增补演讲者模式、幻灯片总览及封面排版调整；相关参考来源见下文。
 
 ## 2. PPT 模板参考
 
@@ -42,7 +42,20 @@
 
 这里引用的 MIT 许可仅对应相关上游参考内容，不表示 HIT-HTML 的全部代码、PPT 版式、字体或学校标识统一采用 MIT。
 
-## 4. 内嵌字形与学校相关图形
+## 4. 演讲者模式参考
+
+- 项目：[lewislulu/html-ppt-skill](https://github.com/lewislulu/html-ppt-skill)。
+- 作者署名：lewis <sudolewis@gmail.com>，以该项目 README 与 LICENSE 的记载为准。
+- 参考示例：[examples/demo-deck/index.html](https://github.com/lewislulu/html-ppt-skill/blob/main/examples/demo-deck/index.html)。
+- 相关实现：[assets/runtime.js](https://github.com/lewislulu/html-ppt-skill/blob/main/assets/runtime.js)。
+- 参考范围：演讲者工作台的卡片式布局、当前页与下一页预览、逐页讲稿、计时，以及双窗口同步放映等交互。
+- 上游许可：[MIT License](https://github.com/lewislulu/html-ppt-skill/blob/main/LICENSE)。
+- 许可中的版权署名：Copyright (c) 2026 lewis <sudolewis@gmail.com>。
+- 核实的许可文件 Git blob SHA：`6c44d346dc52cedc04c104a6ff10dd5ae021d5f8`。
+
+本项目在保留 HIT 视觉风格和原有幻灯片画布的基础上适配上述交互，并调整预览方式、屏幕权限流程、观众控制栏、总览及会话同步。本仓库附上 [MIT 许可原文](../licenses/html-ppt-skill-MIT.txt)，并在单文件 HTML 注释中保留作者署名、参考链接与许可原文。
+
+## 5. 内嵌字形与学校相关图形
 
 | 项目 | 当前文件中的实现与可核实信息 |
 | --- | --- |
@@ -52,7 +65,7 @@
 
 上述标识和固定字形不因转为 SVG、WOFF2 或嵌入 HTML 而自动获得新的授权。本项目不声称拥有学校名称、标识或上游字形的全部权利，也不代表学校官方认可或背书。
 
-## 5. 许可范围与补充方式
+## 6. 许可范围与补充方式
 
 本仓库暂不声明覆盖全部内容的统一开源许可证。上游已有明确许可证的部分按各自许可证处理；来源或授权仍待补充的内容，不以“已注明来源”代替许可，也不因从其他许可中排除而自动获得分发授权。
 
