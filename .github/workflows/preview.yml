@@ -28,6 +28,9 @@ jobs:
           npm install playwright
           npx playwright install chromium
 
+      - name: Verify presenter placement on secondary screens
+        run: node tests/presenter-multiscreen.cjs
+
       - name: Take screenshots
         run: |
           mkdir -p docs/screenshots
@@ -81,3 +84,4 @@ jobs:
         with:
           commit_message: "Update preview screenshots"
           file_pattern: "docs/screenshots/*.png"
+
