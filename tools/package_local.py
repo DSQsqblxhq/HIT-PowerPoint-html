@@ -10,6 +10,8 @@ bootstrap = r'''@echo off
 setlocal DisableDelayedExpansion
 set "HIT_PRESENTATION_SELF=%~f0"
 if not defined HIT_PRESENTATION_POWERSHELL set "HIT_PRESENTATION_POWERSHELL=powershell.exe"
+set "POWERSHELL_TELEMETRY_OPTOUT=1"
+set "POWERSHELL_UPDATECHECK=Off"
 "%HIT_PRESENTATION_POWERSHELL%" -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop';$s=[IO.File]::ReadAllText($env:HIT_PRESENTATION_SELF,[Text.Encoding]::UTF8);$m=[regex]::Match($s,'(?s)\r?\n# === HIT LOCAL START ===\r?\n(.*?)\r?\n# === HIT LOCAL END ===(?:\r?\n|$)');if(-not $m.Success){throw 'Invalid HIT launcher'};& ([scriptblock]::Create($m.Groups[1].Value))"
 if errorlevel 1 pause
 exit /b
@@ -18,11 +20,12 @@ script = (root / 'tools/local/Start-Presentation.ps1').read_text(encoding='utf-8
 intro = '''HIT HTML 单文件本地双屏放映（Windows）
 双击本文件即可启动，不需要其他文件、Python、管理员权限或公网连接。
 请使用新版 Edge / Chrome，将系统显示设为扩展，并允许本机地址的屏幕管理请求。
-演示期间保持启动窗口打开，结束后按 Ctrl+C 关闭。
+演示期间保持启动窗口打开；结束时在终端按 Q 或 Esc，一并关闭放映窗口与本地服务，无需输入 Y。
+启动器使用专用 Edge / Chrome 窗口；权限与布局保存在本机专用浏览器配置中。
 编辑：在文件末尾的 HTML 区域修改页面文字、CONFIG 章节和 NOTES 讲稿。
 固定资源以 HIT-GZIP 注释保存，启动时在内存中还原；保留这些标记和启动代码。
 按 UTF-8 保存后刷新即可；样式及脚本可修改独立 HTML 后重新构建 CMD。
-服务仅监听 127.0.0.1，仅提供本文件内嵌的 HTML，不会解压或生成其他文件。
+服务仅监听 127.0.0.1，HTML 在内存中还原，不解压临时 HTML；浏览器配置保存在本机应用数据目录。
 '''
 notices = [intro]
 html = (root / 'HIT-HTML.html').read_bytes().decode('utf-8')

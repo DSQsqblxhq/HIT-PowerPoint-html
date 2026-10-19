@@ -8,6 +8,8 @@ on:
       - tools/local/**
       - tools/package_local.py
       - tests/local-launcher.cjs
+      - tests/launcher-browser.cjs
+      - tests/console-quit.ps1
       - .github/workflows/local-launcher.yml
   workflow_dispatch:
   workflow_call:
@@ -15,6 +17,9 @@ on:
 jobs:
   windows:
     runs-on: windows-latest
+    env:
+      POWERSHELL_TELEMETRY_OPTOUT: '1'
+      POWERSHELL_UPDATECHECK: 'Off'
     strategy:
       matrix:
         powershell: [powershell.exe, pwsh.exe]
@@ -25,7 +30,25 @@ jobs:
           node-version: 20
       - name: Build single-file launcher
         run: python tools/package_local.py
-      - name: Verify Windows PowerShell launcher
+      - name: Install browser test client
+        run: npm install playwright
+      - name: Verify Windows PowerShell launcher and native quit keys
         env:
           HIT_POWERSHELL_EXECUTABLE: ${{ matrix.powershell }}
         run: node tests/local-launcher.cjs
+      - name: Verify managed browser shutdown and isolation
+        env:
+          HIT_POWERSHELL_EXECUTABLE: ${{ matrix.powershell }}
+        run: |
+          $browsers = @("${env:ProgramFiles(x86)}/Microsoft/Edge/Application/msedge.exe", "$env:ProgramFiles/Google/Chrome/Application/chrome.exe")
+          $tested = 0
+          foreach ($browser in $browsers) {
+            if (Test-Path -LiteralPath $browser) {
+              $tested++
+              Write-Output "Testing $browser"
+              $env:HIT_CHROME_EXECUTABLE = $browser
+              node tests/launcher-browser.cjs
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            }
+          }
+          if ($tested -eq 0) { throw 'No Edge or Chrome installation found' }

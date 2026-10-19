@@ -53,7 +53,7 @@
 
 - **在线预览**：直接访问 [HIT-PowerPoint-html](https://dsqsqblxhq.github.io/HIT-PowerPoint-html/HIT-HTML.html)。
 - **本地使用**：下载[HIT-HTML.html](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.2/HIT-HTML.html)，用浏览器打开。
-- **本地自动双屏（Windows）**：只需下载并双击 [HIT-HTML-local.cmd](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.2/HIT-HTML-local.cmd)，在打开的 Edge / Chrome 中允许屏幕管理权限。HTML、启动代码与许可全部内嵌，不需要其他文件、联网、Python 或管理员权限；演示期间保持启动窗口打开。
+- **本地自动双屏（Windows）**：只需下载并双击 [HIT-HTML-local.cmd](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.2/HIT-HTML-local.cmd)，在打开的 Edge / Chrome 中允许屏幕管理权限。HTML、启动代码与许可全部内嵌，不需要其他文件、联网、Python 或管理员权限；演示期间保持启动窗口打开，结束时切回终端按 `Q`（无需回车），会一并关闭工作台、观众窗口和本地服务，也可按 `Esc` 或 `Ctrl+C`，无需输入 `Y`。
 - **编辑模板**：用文本编辑器修改标题、正文、讲稿，保存后刷新浏览器。
 
 日常使用可以只修改 HTML 文件，转交或再分发时请同时保留相关来源与许可说明。
@@ -100,6 +100,8 @@
 直接打开本地 HTML 时，若互换后再刷新工作台，浏览器可能限制跨窗全屏授权；此时在观众窗口点击“全屏”，或改用 `HIT-HTML-local.cmd`。
 
 在线网页、直接双击的 `file://` 文件与本机地址的屏幕权限分别管理。若在线版能自动打开副屏而本地 HTML 不能，请使用单文件 `HIT-HTML-local.cmd`：它仅在 `127.0.0.1` 提供内嵌 HTML，首次使用需要单独允许该地址的屏幕管理请求。默认地址为 `http://127.0.0.1:8765/HIT-HTML.html`，端口占用时自动顺延。直接打开 HTML 能否自动跨屏仍取决于浏览器的本地文件权限；未取得权限时工作台会提示原因。
+
+CMD 使用专用的 Edge / Chrome 放映窗口，浏览器配置保存在 `%LOCALAPPDATA%\HIT-HTML`，首次需要允许屏幕管理权限，同一文件和地址下的授权与布局可保留。终端退出只关闭本次演示的浏览器进程；手动复制地址打开的页面需自行关闭。
 
 单文件 CMD 可直接编辑页面文字、`CONFIG` 章节和 `NOTES` 讲稿，按 UTF-8 保存后刷新浏览器。固定 SVG、样式和运行脚本以 `HIT-GZIP` 注释压缩，启动器在内存中还原，不生成额外 HTML 文件；请保留这些注释和启动标记。需要修改固定资源时，编辑独立 HTML 并重新构建 CMD。单个 `.html` 无法自行启动本机服务，因此自动本地双屏版本使用 `.cmd` 扩展名。
 

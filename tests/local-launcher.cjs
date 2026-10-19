@@ -78,7 +78,22 @@ const get = (url, options = {}) => new Promise((resolve, reject) => {
       const code = await new Promise((resolve, reject) => {test.on('exit', resolve); test.on('error', reject);});
       assert.equal(code, 0, 'Native multiscreen tests through the launcher failed');
     }
-    console.log('PASS single CMD: native entry point, Unicode/special-character paths, no companion files, exact HTML, edit/reload and restricted loopback routes');
+    server.stdin.write('q');
+    const exitDeadline = Date.now() + 8000;
+    while (!closed && Date.now() < exitDeadline) await pause(40);
+    assert.ok(closed, 'Q must stop the launcher without a batch confirmation: ' + logs);
+    assert.equal(server.exitCode, 0, logs);
+    assert.equal(fs.existsSync(ready), false);
+    await assert.rejects(get(url), error => error.code === 'ECONNREFUSED');
+    assert.doesNotMatch(logs, /Terminate batch job|终止批处理|\(Y\/N\)/i);
+    console.log('PASS single CMD: exact HTML, edits, restricted routes and Q exits cleanly without confirmation');
+    if (process.platform === 'win32') {
+      for (const key of ['Q', 'CtrlC']) {
+        const test = spawn(powershell, ['-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(__dirname, 'console-quit.ps1'), '-Launcher', single, '-ReadyFile', path.join(folder, `console-${key}.json`), '-Key', key], {stdio: 'inherit', env});
+        const code = await new Promise((resolve, reject) => {test.on('exit', resolve); test.on('error', reject);});
+        assert.equal(code, 0, `Native ${key} console quit failed`);
+      }
+    }
   } finally {
     if (!closed) {
       if (process.platform === 'win32') {
