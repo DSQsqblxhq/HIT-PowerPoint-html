@@ -143,6 +143,34 @@ $oldControlC = $null
 $stdinStream = $null
 $stdinTask = $null
 
+function Set-PresentationBrowserPermissions {
+    # Configure only this launcher's owned profile and exact loopback origin.
+    # Screen-management consent remains a normal browser permission prompt.
+    $folder = Join-Path $browserState.Path 'Default'
+    [void][IO.Directory]::CreateDirectory($folder)
+    $file = Join-Path $folder 'Preferences'
+    $prefs = if (Test-Path -LiteralPath $file) {
+        ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($file, [Text.Encoding]::UTF8))
+    } else { [pscustomobject]@{} }
+    $node = $prefs
+    foreach ($name in @('profile', 'content_settings', 'exceptions')) {
+        if (-not $node.PSObject.Properties[$name] -or $null -eq $node.$name) {
+            $node | Add-Member -NotePropertyName $name -NotePropertyValue ([pscustomobject]@{}) -Force
+        }
+        $node = $node.$name
+    }
+    $origin = ([Uri]$url).GetLeftPart([UriPartial]::Authority) + ',*'
+    foreach ($name in @('automatic_fullscreen', 'popups')) {
+        if (-not $node.PSObject.Properties[$name] -or $null -eq $node.$name) {
+            $node | Add-Member -NotePropertyName $name -NotePropertyValue ([pscustomobject]@{}) -Force
+        }
+        $node.$name | Add-Member -NotePropertyName $origin -NotePropertyValue ([pscustomobject]@{ setting = 1 }) -Force
+    }
+    $json = ConvertTo-Json -InputObject $prefs -Depth 100 -Compress
+    [IO.File]::WriteAllText($file + '.hit.tmp', $json, [Text.UTF8Encoding]::new($false))
+    Move-Item -LiteralPath ($file + '.hit.tmp') -Destination $file -Force
+}
+
 function Start-PresentationBrowser([string]$Executable) {
     # A dedicated profile gives this launcher ownership of its browser process,
     # and preserves permissions/layout between ordinary runs of the same CMD.
@@ -177,7 +205,7 @@ function Start-PresentationBrowser([string]$Executable) {
     if ($env:HIT_PRESENTATION_BROWSER_ARGUMENTS) {
         foreach ($argument in (ConvertFrom-Json -InputObject $env:HIT_PRESENTATION_BROWSER_ARGUMENTS)) { $arguments += [string]$argument }
     }
-    [void][IO.Directory]::CreateDirectory($browserState.Path)
+    Set-PresentationBrowserPermissions
     $browserState.Process = Start-Process -FilePath $Executable -ArgumentList $arguments -RedirectStandardOutput (Join-Path $browserState.Path 'hit-launcher.out.log') -RedirectStandardError (Join-Path $browserState.Path 'hit-launcher.err.log') -PassThru
     if ($browserState.OwnerFile) { [IO.File]::WriteAllText($browserState.OwnerFile, [string]$browserState.Process.Id) }
 }

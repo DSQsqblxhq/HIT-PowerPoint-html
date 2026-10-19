@@ -64,6 +64,10 @@ const until = async (condition, message, timeout = 20000) => {
         return true;
       } catch { return false; }
     }, 'Could not connect to the new managed browser process');
+    const settings = JSON.parse(fs.readFileSync(path.join(session.info.profile, 'Default/Preferences'), 'utf8')).profile.content_settings.exceptions;
+    for (const name of ['automatic_fullscreen', 'popups']) {
+      assert.equal(settings[name][new URL(session.info.url).origin + ',*'].setting, 1, 'Owned profile must allow only the presentation origin: ' + name);
+    }
     session.context = session.browser.contexts()[0];
     const matches = page => page.url().split(/[?#]/)[0] === session.info.url;
     // The shell fixture has no app-window frontend; real Chrome/Edge CI must open --app itself.
@@ -130,10 +134,24 @@ const until = async (condition, message, timeout = 20000) => {
       await cdp.send('Emulation.addScreen', {left: 1920, top: 0, width: 2560, height: 1440, label: 'Audience display'});
     }
     await cdp.send('Browser.setPermission', {permission: {name: 'window-management'}, setting: 'granted', origin: new URL(first.info.url).origin});
+    // Expire the popup's click activation, as happens after permission prompts or slow loads.
+    await first.context.addInitScript(() => {
+      const request = Element.prototype.requestFullscreen;
+      window.__fullscreenAttempts = [];
+      Element.prototype.requestFullscreen = async function(options) {
+        await new Promise(resolve => setTimeout(resolve, 6500));
+        const attempt = {active: navigator.userActivation.isActive};
+        window.__fullscreenAttempts.push(attempt);
+        try { const result = await request.call(this, options); attempt.ok = true; return result; }
+        catch (error) { attempt.error = String(error); throw error; }
+      };
+    });
     const viewer = await openPresenter(first);
     await viewer.waitForLoadState();
     await first.page.waitForFunction(() => document.getElementById('presenter-status').classList.contains('connected'));
-    await viewer.waitForFunction(() => !!document.fullscreenElement);
+    try { await viewer.waitForFunction(() => !!document.fullscreenElement); }
+    catch (error) { console.error('Delayed fullscreen attempts:', await viewer.evaluate(() => window.__fullscreenAttempts)); throw error; }
+    assert.ok(await viewer.evaluate(() => window.__fullscreenAttempts.some(a => a.ok && !a.active)), 'Audience must fullscreen after click activation expires');
     if (process.platform !== 'win32') await viewer.waitForFunction(() => screenX >= 1920);
     assert.equal(await first.page.evaluate(() => !!document.fullscreenElement), false, 'Workbench must stay windowed while the audience is fullscreen');
     if (process.platform === 'win32') assert.notEqual((await cdp.send('Browser.getWindowForTarget')).bounds.windowState, 'fullscreen');
@@ -172,7 +190,7 @@ const until = async (condition, message, timeout = 20000) => {
     await quit(third, '\x03');
     const fourth = await start('fourth', first.info.port);
     await quit(fourth, 'q');
-    console.log('PASS managed browser: launch display, windowed homepage/workbench, automatic audience fullscreen, restored-bounds/fullscreen override, Q/Esc/Ctrl+C, isolated concurrent browsers and persistent preferences');
+    console.log('PASS managed browser: launch display, windowed homepage/workbench, automatic audience fullscreen after activation expiry, restored-bounds/fullscreen override, Q/Esc/Ctrl+C, isolated concurrent browsers and persistent preferences');
   } finally {
     for (const session of sessions) {
       if (!session.closed) {
