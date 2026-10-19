@@ -31,6 +31,9 @@ jobs:
       - name: Verify presenter placement on secondary screens
         run: node tests/presenter-multiscreen.cjs
 
+      - name: Verify HTTPS automatic audience fullscreen
+        run: node tests/web-presenter-fullscreen.cjs
+
       - name: Take screenshots
         run: |
           mkdir -p docs/screenshots
