@@ -105,18 +105,28 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
       await until(() => read('!!document.fullscreenElement'));
       if (scenario === 'left') {
         await workbench.locator('#presenter-swap').click();
-        await main.waitForFunction(() => document.documentElement.dataset.role === 'presenter' && document.getElementById('presenter-status').textContent.includes('全屏放映'));
-        await workbench.waitForFunction(() => document.documentElement.dataset.role === 'audience' && !!document.fullscreenElement);
-        assert.equal(await main.locator('#presenter-counter').textContent(), '2 / 8');
-        assert.equal(await main.locator('#presenter-timer-toggle').textContent(), '继续');
-        const closed = workbench.waitForEvent('close');
-        await main.locator('#presenter-exit').click();
-        await closed;
-      } else {
-        const closed = workbench.waitForEvent('close');
-        await workbench.locator('#presenter-exit').click();
-        await closed;
+        await until(async () => {
+          const box = (await workCDP.send('Browser.getWindowForTarget')).bounds;
+          return box.left + box.width / 2 >= layout.left && box.left + box.width / 2 < layout.left + layout.width;
+        });
+        assert.equal(await read('document.documentElement.dataset.role'), 'audience');
+        assert.equal(await read('window.__fullscreenRequests.at(-1).left'), 0);
+        assert.equal(await workbench.locator('#presenter-counter').textContent(), '2 / 8');
+        assert.equal(await workbench.locator('#presenter-timer-toggle').textContent(), '继续');
+        const edge = await read('({x:innerWidth/2,y:innerHeight-5})');
+        await main.mouse.move(edge.x, edge.y);
+        await main.locator('#audience-swap').click();
+        await until(async () => {
+          const box = (await workCDP.send('Browser.getWindowForTarget')).bounds;
+          return box.left + box.width / 2 >= 0 && box.left + box.width / 2 < 1920;
+        });
+        assert.equal(await read('window.__fullscreenRequests.at(-1).left'), layout.left);
+        assert.equal(await read('!!document.fullscreenElement'), true);
+        assert.equal(context.pages().length, 2);
       }
+      const closed = workbench.waitForEvent('close');
+      await workbench.locator('#presenter-exit').click();
+      await closed;
       await until(() => read('document.documentElement.dataset.role==="deck" && !document.fullscreenElement'));
       assert.equal(context.pages().length, 1);
       console.log(`PASS HTTPS/${scenario}: one gesture requests native fullscreen on the secondary screen, windowed workbench on the source screen, sync/timer and clean exit`);
