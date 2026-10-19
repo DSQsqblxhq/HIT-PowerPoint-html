@@ -138,6 +138,8 @@ const until = async (condition, message, timeout = 20000) => {
     assert.equal(fs.existsSync(second.info.profile), false, 'Transient profile should be cleaned up');
     const third = await start('third', first.info.port);
     assert.equal(third.info.profile, first.info.profile, 'Normal relaunch should reuse presentation preferences');
+    const thirdCDP = await third.context.newCDPSession(third.page);
+    await thirdCDP.send('Browser.setPermission', {permission: {name: 'window-management'}, setting: 'granted', origin: new URL(third.info.url).origin});
     const nextPopup = third.page.waitForEvent('popup');
     await third.page.keyboard.press('s');
     await nextPopup;
