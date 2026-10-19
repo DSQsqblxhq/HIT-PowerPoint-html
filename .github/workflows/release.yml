@@ -25,6 +25,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Build single-file local launcher
+        run: python3 tools/package_local.py
       - name: Verify local launcher with native secondary screens
         env:
           HIT_POWERSHELL_EXECUTABLE: pwsh
@@ -33,8 +35,6 @@ jobs:
           npm install playwright
           npx playwright install --with-deps chromium
           node tests/local-launcher.cjs
-      - name: Build offline local package
-        run: python3 tools/package_local.py
       - name: Upload, verify and publish v1.2
         env:
           GH_TOKEN: ${{ github.token }}
@@ -47,7 +47,8 @@ jobs:
           - 新增演讲者工作台：当前页与下一页预览、逐页讲稿、全程与本页计时、当前时钟、讲稿字号调节及可保存的卡片布局。
           - 支持演讲者和观众双窗口同步翻页、屏幕选择与全屏放映；先完成浏览器屏幕权限询问，再打开观众窗口。
           - 取得屏幕管理权限后自动锁定副屏，加载后校验位置并重试；全屏前先确认已到达目标屏幕，支持左右两侧副屏。
-          - 新增 Windows 本地双屏启动包：完整解压后双击 Start-Presentation.cmd，通过 127.0.0.1 读取本地 HTML，无需联网、Python 或管理员权限。首次使用需单独允许本机地址的屏幕管理请求；演示期间保持启动窗口打开。
+          - Windows 本地双屏改为一个 HIT-HTML-local.cmd：HTML、启动服务、使用说明和来源许可全部内嵌，无需配套文件，不会解压或生成临时 HTML；双击即可通过 127.0.0.1 打开，无需联网、Python 或管理员权限。首次使用需单独允许本机地址的屏幕管理请求；演示期间保持启动窗口打开。
+          - 单文件 CMD 末尾保留可编辑 HTML，修改后按 UTF-8 保存并刷新即可；兼容 ZIP 附件中也仅包含同一个 CMD。
           - 本地 HTML 未取得屏幕管理权限时明确提示使用启动包或手动移动窗口，不再自动在当前屏幕全屏。在线网页授权不会继承给直接打开的本地文件。
           - 修复工作台“副屏全屏”与 F 快捷键：直接让观众窗口全屏，无需在观众窗口再次点击；支持在线与本地 HTML。本地窗口刷新后若提示重连，再在工作台点击一次即可，当前页与计时会保留。
           - 新增幻灯片总览，点击缩略图跳转；统一观众底栏，保留翻页、总览和全屏。
@@ -60,13 +61,13 @@ jobs:
           - 演讲者模式参考 lewislulu/html-ppt-skill（MIT，作者 lewis），仓库与单文件已补充来源、署名及许可原文。
 
           单屏或手动双屏：下载 `HIT-HTML.html`，直接用浏览器打开，可离线放映。
-          本地自动双屏（Windows）：下载 `HIT-HTML-local-v1.2.zip`，完整解压后双击 `Start-Presentation.cmd`，点击“演讲者”并允许屏幕管理权限。页面和文件都在本机，不需要公网。
+          本地自动双屏（Windows）：只需下载并双击 `HIT-HTML-local.cmd`，点击“演讲者”并允许屏幕管理权限。页面和文件都在本机，不需要公网。也可下载 ZIP，其中仅有同一个 CMD。
           直接打开 `file://` HTML 是否能自动跨屏取决于浏览器的本地权限；页面无法绕过授权。本地启动包用于避开该差异。
           EOF
           if gh release view v1.2 > /dev/null 2>&1; then
-            gh release upload v1.2 HIT-HTML.html dist/HIT-HTML-local-v1.2.zip --clobber
+            gh release upload v1.2 HIT-HTML.html dist/HIT-HTML-local.cmd dist/HIT-HTML-local-v1.2.zip --clobber
           else
-            gh release create v1.2 HIT-HTML.html dist/HIT-HTML-local-v1.2.zip \
+            gh release create v1.2 HIT-HTML.html dist/HIT-HTML-local.cmd dist/HIT-HTML-local-v1.2.zip \
               --target "$GITHUB_SHA" \
               --title "HIT-HTML v1.2" \
               --notes-file "$RUNNER_TEMP/release-notes.md" \
@@ -74,9 +75,11 @@ jobs:
           fi
           gh release download v1.2 \
             --pattern HIT-HTML.html \
+            --pattern HIT-HTML-local.cmd \
             --pattern HIT-HTML-local-v1.2.zip \
             --dir "$RUNNER_TEMP/release-v1.2"
           cmp HIT-HTML.html "$RUNNER_TEMP/release-v1.2/HIT-HTML.html"
+          cmp dist/HIT-HTML-local.cmd "$RUNNER_TEMP/release-v1.2/HIT-HTML-local.cmd"
           cmp dist/HIT-HTML-local-v1.2.zip "$RUNNER_TEMP/release-v1.2/HIT-HTML-local-v1.2.zip"
           gh release edit v1.2 --draft=false --latest --notes-file "$RUNNER_TEMP/release-notes.md"
 

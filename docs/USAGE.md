@@ -4,9 +4,11 @@
 
 下载并解压仓库后，直接用浏览器打开 `HIT-HTML.html`。模板不依赖在线脚本、字体服务或后端，基础放映不需要联网。
 
-需要在本地自动将观众窗口投放到副屏时，Windows 用户可下载 [本地双屏启动包](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.2/HIT-HTML-local-v1.2.zip)，完整解压后双击 `Start-Presentation.cmd`。浏览器会通过 `http://127.0.0.1:8765/HIT-HTML.html` 读取本地文件，不依赖公网。无需安装 Python，也不需要管理员权限；演示期间保持启动窗口打开，结束后按 `Ctrl+C` 关闭本机服务。端口占用时，启动器会选择后续可用端口，以命令行显示的地址为准。
+需要在本地自动将观众窗口投放到副屏时，Windows 用户只需下载并双击 [HIT-HTML-local.cmd](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.2/HIT-HTML-local.cmd)。HTML、启动服务、说明和来源许可都在这一个文件中，不需要配套文件；[兼容 ZIP](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.2/HIT-HTML-local-v1.2.zip)中也仅有同一个 CMD。浏览器会通过 `http://127.0.0.1:8765/HIT-HTML.html` 读取内嵌页面，不依赖公网。无需安装 Python，也不需要管理员权限；演示期间保持启动窗口打开，结束后按 `Ctrl+C` 关闭本机服务。端口占用时，启动器会选择后续可用端口，以命令行显示的地址为准。
 
-启动器优先使用已安装的 Edge 或 Chrome；若未自动打开，请将显示的地址复制到新版 Edge / Chrome。修改解压目录里的 `HIT-HTML.html` 后，保存并刷新即可。仓库源码使用者也可运行 `tools/local/Start-Presentation.cmd`，脚本会读取仓库根目录的 HTML。
+启动器优先使用已安装的 Edge 或 Chrome；若未自动打开，请将显示的地址复制到新版 Edge / Chrome。编辑时用文本编辑器打开该 CMD，在末尾找到 `<!doctype html>`，修改后面的 HTML，保留前面的启动代码和分隔标记，按 UTF-8 保存后刷新即可。服务每次请求都从 CMD 自身重新读取页面，不会解压或生成临时 HTML。若编辑器使用 CRLF 换行也可以正常启动。
+
+单个 `.html` 不能自行启动本机服务，因此该自动本地双屏版本使用 `.cmd` 扩展名；原 `HIT-HTML.html` 的直接放映方式继续保留。仓库开发者可运行 `python tools/package_local.py`，从根目录 HTML 和启动器源代码生成 `dist/HIT-HTML-local.cmd`；这是构建步骤，使用者无需 Python。
 
 页面按 1920 × 1080 画布等比例缩放。窗口比例不为 16:9 时会出现背景留白；这不会改变幻灯片内容。
 
@@ -87,7 +89,7 @@ const CONFIG = {
 
 ### 双屏放映
 
-网页、`file://` 本地文件与 `127.0.0.1` 本机地址的屏幕管理授权不会互相继承。直接双击 HTML 能否自动选择副屏取决于当前浏览器对本地文件的授权；若在线版能投放而本地文件不能，请使用上述本地启动包，在本机地址重新授权。页面不能强制绕过浏览器权限。
+网页、`file://` 本地文件与 `127.0.0.1` 本机地址的屏幕管理授权不会互相继承。直接双击 HTML 能否自动选择副屏取决于当前浏览器对本地文件的授权；若在线版能投放而本地文件不能，请使用上述单文件 CMD，在本机地址重新授权。页面不能强制绕过浏览器权限。
 
 1. 将系统显示方式设为“扩展”，在普通放映中点击“演讲者”或按 `S`。
 2. 若浏览器询问屏幕管理权限，先完成授权；观众窗口在询问结束后打开。若弹窗被拦截，允许弹窗后在工作台点击“打开播放窗”或按 `O`。
@@ -98,7 +100,7 @@ const CONFIG = {
 
 本地 HTML 在工作台或观众窗口刷新后，若提示播放窗口已重新连接，再在工作台点击一次“副屏全屏”或按 `F` 即可。重新连接会保留当前页与计时，不需要点击观众窗口。
 
-本地启动脚本只监听 `127.0.0.1`，只提供这一份 HTML；其他设备不能通过该服务访问文件。`Start-Presentation.cmd` 的 `ExecutionPolicy Bypass` 只作用于本次 PowerShell 进程，不修改系统执行策略。若所在设备的组织策略禁止脚本执行，请使用在线版，或直接打开 HTML 并手动移动观众窗口。
+本地启动脚本只监听 `127.0.0.1`，只提供内嵌 HTML；其他设备不能通过该服务访问文件。`HIT-HTML-local.cmd` 的 `ExecutionPolicy Bypass` 只作用于本次 PowerShell 进程，不修改系统执行策略。若所在设备的组织策略禁止脚本执行，请使用在线版，或直接打开 HTML 并手动移动观众窗口。
 
 ### 幻灯片总览
 

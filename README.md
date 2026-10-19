@@ -4,7 +4,7 @@
 
 **哈尔滨工业大学学术汇报 HTML 模板**
 
-[点击预览](https://dsqsqblxhq.github.io/HIT-PowerPoint-html/HIT-HTML.html) · [下载 HTML](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.2/HIT-HTML.html) · [本地双屏启动包](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.2/HIT-HTML-local-v1.2.zip)
+[点击预览](https://dsqsqblxhq.github.io/HIT-PowerPoint-html/HIT-HTML.html) · [下载 HTML](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.2/HIT-HTML.html) · [本地双屏单文件](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.2/HIT-HTML-local.cmd)
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
@@ -53,7 +53,7 @@
 
 - **在线预览**：直接访问 [HIT-PowerPoint-html](https://dsqsqblxhq.github.io/HIT-PowerPoint-html/HIT-HTML.html)。
 - **本地使用**：下载[HIT-HTML.html](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.2/HIT-HTML.html)，用浏览器打开。
-- **本地自动双屏（Windows）**：下载[本地双屏启动包](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.2/HIT-HTML-local-v1.2.zip)，完整解压后双击 `Start-Presentation.cmd`，在打开的 Edge / Chrome 中允许屏幕管理权限。仍读取本地 HTML，无需联网、Python 或管理员权限；演示期间保持启动窗口打开。
+- **本地自动双屏（Windows）**：只需下载并双击 [HIT-HTML-local.cmd](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.2/HIT-HTML-local.cmd)，在打开的 Edge / Chrome 中允许屏幕管理权限。HTML、启动代码与许可全部内嵌，不需要其他文件、联网、Python 或管理员权限；演示期间保持启动窗口打开。[ZIP 下载](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.2/HIT-HTML-local-v1.2.zip)中也仅包含同一个 CMD。
 - **编辑模板**：用文本编辑器修改标题、正文、讲稿，保存后刷新浏览器。
 
 日常使用可以只修改 HTML 文件，转交或再分发时请同时保留相关来源与许可说明。
@@ -93,7 +93,9 @@
 
 进入演讲者模式时，当前窗口显示工作台，观众窗口在屏幕权限询问结束后打开。双屏使用时将系统显示设为“扩展”，在工作台选择播放屏幕；也可手动把观众窗口拖到副屏。随后在工作台点击“副屏全屏”或按 `F`，即可让观众窗口全屏，无需切换窗口操作。若浏览器拦截弹窗，允许后点击“打开播放窗”。全屏请求失败时，工作台会显示原因并允许重试。
 
-在线网页、直接双击的 `file://` 文件与本机地址的屏幕权限分别管理。若在线版能自动打开副屏而本地 HTML 不能，请使用本地双屏启动包：它仅在 `127.0.0.1` 提供同一份 HTML，首次使用需要单独允许该地址的屏幕管理请求。默认地址为 `http://127.0.0.1:8765/HIT-HTML.html`，端口占用时自动顺延。直接打开 HTML 能否自动跨屏仍取决于浏览器的本地文件权限；未取得权限时工作台会提示原因。
+在线网页、直接双击的 `file://` 文件与本机地址的屏幕权限分别管理。若在线版能自动打开副屏而本地 HTML 不能，请使用单文件 `HIT-HTML-local.cmd`：它仅在 `127.0.0.1` 提供内嵌 HTML，首次使用需要单独允许该地址的屏幕管理请求。默认地址为 `http://127.0.0.1:8765/HIT-HTML.html`，端口占用时自动顺延。直接打开 HTML 能否自动跨屏仍取决于浏览器的本地文件权限；未取得权限时工作台会提示原因。
+
+单文件 CMD 可直接编辑：用文本编辑器打开，在末尾找到 `<!doctype html>` 并修改后面的 HTML，保留前面的启动代码与分隔标记，按 UTF-8 保存后刷新浏览器。程序从自身读取页面，不会解压或生成额外 HTML 文件。单个 `.html` 无法自行启动本机服务，因此自动本地双屏版本使用 `.cmd` 扩展名。
 
 本地 HTML 在任一窗口刷新后，可能需要重新连接播放窗口。看到重连提示后，再在工作台点击一次“副屏全屏”或按 `F` 即可，当前页与计时会保留。
 

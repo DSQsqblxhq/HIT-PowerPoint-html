@@ -1,18 +1,20 @@
 ﻿param(
-    [ValidateRange(0, 65535)][int]$Port = 8765,
-    [string]$HtmlPath,
-    [switch]$NoBrowser,
-    [string]$ReadyFile
+    [ValidateRange(0, 65535)][int]$Port = $(if ($env:HIT_PRESENTATION_PORT) { $env:HIT_PRESENTATION_PORT } else { 8765 }),
+    [string]$SelfPath = $env:HIT_PRESENTATION_SELF,
+    [switch]$NoBrowser = ($env:HIT_PRESENTATION_NO_BROWSER -eq '1'),
+    [string]$ReadyFile = $env:HIT_PRESENTATION_READY_FILE
 )
 
 $ErrorActionPreference = 'Stop'
-if (-not $HtmlPath) {
-    $HtmlPath = Join-Path $PSScriptRoot 'HIT-HTML.html'
-    if (-not (Test-Path -LiteralPath $HtmlPath -PathType Leaf)) {
-        $HtmlPath = Join-Path $PSScriptRoot '../../HIT-HTML.html'
-    }
+if (-not $SelfPath) { throw '请双击生成的 HIT-HTML-local.cmd。' }
+$SelfPath = (Resolve-Path -LiteralPath $SelfPath).Path
+function Read-Presentation {
+    $source = [System.IO.File]::ReadAllText($SelfPath, [System.Text.Encoding]::UTF8)
+    $match = [regex]::Match($source, '(?s)\r?\n<!-- === HIT HTML START === -->\r?\n(.*)\z')
+    if (-not $match.Success) { throw '未找到内嵌 HTML，请重新下载完整的 HIT-HTML-local.cmd。' }
+    return ,([System.Text.Encoding]::UTF8.GetBytes($match.Groups[1].Value))
 }
-$HtmlPath = (Resolve-Path -LiteralPath $HtmlPath).Path
+[void](Read-Presentation)
 $listener = $null
 $lastPort = if ($Port -eq 0) { 0 } else { [Math]::Min($Port + 10, 65535) }
 for ($candidate = $Port; $candidate -le $lastPort; $candidate++) {
@@ -43,6 +45,7 @@ try {
     Write-Host $url
     Write-Host '请保持此窗口打开；结束后按 Ctrl+C 关闭。'
     Write-Host '双屏：系统设为扩展 -> 点击演讲者 -> 允许本机地址的屏幕管理权限。'
+    Write-Host '修改内容：用文本编辑器打开此 CMD，编辑末尾的 HTML，按 UTF-8 保存后刷新页面。'
     if ($ReadyFile) {
         @{ url = $url; port = $boundPort; address = '127.0.0.1' } |
             ConvertTo-Json -Compress | Set-Content -LiteralPath $ReadyFile -Encoding UTF8
@@ -94,7 +97,7 @@ try {
             if (-not $hostAllowed) {
                 Send-Response $stream 400 'Bad Request' ([byte[]]@()) $headOnly
             } elseif ($requestPath -in @('/', '/HIT-HTML.html')) {
-                Send-Response $stream 200 'OK' ([System.IO.File]::ReadAllBytes($HtmlPath)) $headOnly
+                Send-Response $stream 200 'OK' (Read-Presentation) $headOnly
             } elseif ($requestPath -eq '/favicon.ico') {
                 Send-Response $stream 204 'No Content' ([byte[]]@()) $headOnly
             } else {

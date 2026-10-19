@@ -108,7 +108,7 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
     await local.keyboard.press('s');
     const localAudience = await localPopup;
     await localAudience.waitForLoadState();
-    await local.waitForFunction(() => document.getElementById('presenter-notice').textContent.includes('Start-Presentation.cmd'));
+    await local.waitForFunction(() => document.getElementById('presenter-notice').textContent.includes('HIT-HTML-local.cmd'));
     assert.equal(await localAudience.evaluate(() => !!document.fullscreenElement), false);
     await fresh.close();
     console.log('PASS fresh local file: web grant is separate; failed screen access shows the local-launcher guidance without auto-fullscreen');

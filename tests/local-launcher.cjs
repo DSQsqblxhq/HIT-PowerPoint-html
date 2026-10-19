@@ -19,16 +19,24 @@ const get = (url, options = {}) => new Promise((resolve, reject) => {
 });
 
 (async () => {
-  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'HIT local 中文 '));
-  const html = path.join(folder, 'HIT-HTML.html');
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'HIT single 中文 & ! (test) '));
+  const single = path.join(folder, 'HIT-HTML-local.cmd');
   const ready = path.join(folder, 'server-ready.json');
   const content = fs.readFileSync(path.join(root, 'HIT-HTML.html'));
-  for (const name of ['Start-Presentation.ps1', 'Start-Presentation.cmd']) {
-    fs.copyFileSync(path.join(root, 'tools/local', name), path.join(folder, name));
-  }
-  fs.writeFileSync(html, content);
+  const payload = fs.readFileSync(path.join(root, 'dist/HIT-HTML-local.cmd'));
+  fs.writeFileSync(single, payload);
+  assert.deepEqual(fs.readdirSync(folder), ['HIT-HTML-local.cmd']);
+  assert.deepEqual(Buffer.from(payload.toString('utf8').match(/\r?\n<!-- === HIT HTML START === -->\r?\n([\s\S]*)$/)[1]), content);
   const powershell = process.env.HIT_POWERSHELL_EXECUTABLE || (process.platform === 'win32' ? 'powershell.exe' : 'pwsh');
-  const server = spawn(powershell, ['-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(folder, 'Start-Presentation.ps1'), '-Port', '0', '-NoBrowser', '-ReadyFile', ready], {windowsHide: true});
+  const env = {...process.env, HIT_PRESENTATION_SELF: single, HIT_PRESENTATION_POWERSHELL: powershell, HIT_PRESENTATION_PORT: '0', HIT_PRESENTATION_NO_BROWSER: '1', HIT_PRESENTATION_READY_FILE: ready};
+  const bootstrap = payload.toString('utf8').split(/\r?\n/).find(line => line.includes(' -Command '));
+  const command = bootstrap.match(/ -Command "(.*)"$/)[1];
+  // Windows runs the actual CMD entry point; Linux exercises its exact PowerShell command.
+  const server = process.platform === 'win32'
+    ? spawn(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', `""${single}""`], {windowsHide: true, windowsVerbatimArguments: true, env})
+    : spawn(powershell, ['-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', command], {env});
+  let closed = false;
+  const stopped = new Promise(resolve => server.once('close', () => {closed = true; resolve();}));
   let logs = '', startupError;
   server.stdout.on('data', data => {logs += data;});
   server.stderr.on('data', data => {logs += data;});
@@ -52,27 +60,30 @@ const get = (url, options = {}) => new Promise((resolve, reject) => {
     assert.equal(head.status, 200);
     assert.equal(head.body.length, 0);
     assert.equal(Number(head.headers['content-length']), content.length);
-    for (const target of ['/missing', '/Start-Presentation.ps1', '/%2e%2e/LICENSE']) {
+    for (const target of ['/missing', '/HIT-HTML-local.cmd', '/Start-Presentation.ps1', '/%2e%2e/LICENSE']) {
       assert.equal((await get(new URL(target, url))).status, 404);
     }
     assert.equal((await get(url, {method: 'POST'})).status, 405);
     assert.equal((await get(url, {headers: {Host: 'example.com'}})).status, 400);
     assert.equal((await get(new URL('/favicon.ico', url))).status, 204);
     const updated = Buffer.concat([content, Buffer.from('\n<!-- local edit -->\n')]);
-    fs.writeFileSync(html, updated);
+    fs.writeFileSync(single, Buffer.concat([payload, Buffer.from('\n<!-- local edit -->\n')]));
     assert.deepEqual((await get(url)).body, updated);
-    fs.writeFileSync(html, content);
+    fs.writeFileSync(single, payload);
+    assert.deepEqual(fs.readdirSync(folder).sort(), ['HIT-HTML-local.cmd', 'server-ready.json']);
     if (process.env.HIT_VERIFY_LAUNCHER_SCREENS === '1') {
       const test = spawn(process.execPath, [path.join(__dirname, 'presenter-multiscreen.cjs')], {stdio: 'inherit', env: {...process.env, HIT_PRESENTATION_URL: info.url}});
       const code = await new Promise((resolve, reject) => {test.on('exit', resolve); test.on('error', reject);});
       assert.equal(code, 0, 'Native multiscreen tests through the launcher failed');
     }
-    console.log('PASS local launcher: PowerShell runtime, Unicode paths, exact HTML bytes, HEAD, edit/reload and restricted loopback routes');
+    console.log('PASS single CMD: native entry point, Unicode/special-character paths, no companion files, exact HTML, edit/reload and restricted loopback routes');
   } finally {
-    if (server.exitCode === null) {
-      const closed = new Promise(resolve => server.once('exit', resolve));
-      server.kill();
-      await closed;
+    if (!closed) {
+      if (process.platform === 'win32') {
+        const kill = spawn('taskkill.exe', ['/pid', String(server.pid), '/T', '/F'], {windowsHide: true, stdio: 'ignore'});
+        await new Promise(resolve => kill.once('close', resolve));
+      } else server.kill();
+      await stopped;
     }
     fs.rmSync(folder, {recursive: true, force: true});
   }

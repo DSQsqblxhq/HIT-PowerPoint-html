@@ -23,9 +23,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Build single-file launcher
+        run: python tools/package_local.py
       - name: Verify Windows PowerShell launcher
         env:
           HIT_POWERSHELL_EXECUTABLE: ${{ matrix.powershell }}
         run: node tests/local-launcher.cjs
-      - name: Build offline bundle
-        run: python tools/package_local.py
