@@ -75,7 +75,9 @@ function Start-PresentationBrowser([string]$Executable) {
     }
     # Quotes belong in ArgumentList on Windows PowerShell, including paths with spaces.
     $arguments = @('--no-first-run', '--no-default-browser-check', '--disable-background-mode', ('--user-data-dir="{0}"' -f $browserState.Path), ('--app="{0}"' -f $url))
-    if ($env:HIT_PRESENTATION_BROWSER_ARGUMENTS) { $arguments += @($env:HIT_PRESENTATION_BROWSER_ARGUMENTS | ConvertFrom-Json) }
+    if ($env:HIT_PRESENTATION_BROWSER_ARGUMENTS) {
+        foreach ($argument in (ConvertFrom-Json -InputObject $env:HIT_PRESENTATION_BROWSER_ARGUMENTS)) { $arguments += [string]$argument }
+    }
     [void][IO.Directory]::CreateDirectory($browserState.Path)
     $browserState.Process = Start-Process -FilePath $Executable -ArgumentList $arguments -RedirectStandardOutput (Join-Path $browserState.Path 'hit-launcher.out.log') -RedirectStandardError (Join-Path $browserState.Path 'hit-launcher.err.log') -PassThru
     if ($browserState.OwnerFile) { [IO.File]::WriteAllText($browserState.OwnerFile, [string]$browserState.Process.Id) }
@@ -156,7 +158,8 @@ try {
     }
     if ($ReadyFile) {
         @{ url = $url; port = $boundPort; address = '127.0.0.1'; browserPid = $(if ($browserState.Process) { $browserState.Process.Id } else { 0 }); profile = $browserState.Path } |
-            ConvertTo-Json -Compress | Set-Content -LiteralPath $ReadyFile -Encoding UTF8
+            ConvertTo-Json -Compress | Set-Content -LiteralPath ($ReadyFile + '.tmp') -Encoding UTF8
+        Move-Item -LiteralPath ($ReadyFile + '.tmp') -Destination $ReadyFile -Force
     }
     while ($true) {
         if ($consoleInput -and [Console]::KeyAvailable) {
@@ -216,6 +219,7 @@ try {
         if ($null -ne $oldControlC) { [Console]::TreatControlCAsInput = $oldControlC }
         if ($stdinStream) { $stdinStream.Dispose() }
         if ($ReadyFile) { Remove-Item -LiteralPath $ReadyFile -ErrorAction SilentlyContinue }
+        if ($ReadyFile) { Remove-Item -LiteralPath ($ReadyFile + '.tmp') -ErrorAction SilentlyContinue }
     }
     Write-Host '放映已结束。'
 }
