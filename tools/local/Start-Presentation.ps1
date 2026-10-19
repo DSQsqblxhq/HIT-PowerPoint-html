@@ -281,7 +281,7 @@ try {
     Write-Host 'HIT 本地演示已启动（无需联网）。'
     Write-Host $url
     Write-Host '请保持此窗口打开；结束时按 Q 或 Esc，一并关闭放映窗口和本地服务。'
-    Write-Host '双屏：系统设为扩展 -> 点击演讲者 -> 允许本机地址的屏幕管理权限。'
+    Write-Host '双屏：系统设为扩展 -> 点击演讲 -> 允许本机地址的屏幕管理权限。'
     Write-Host '修改内容：编辑此 CMD 末尾的页面文字、CONFIG 和 NOTES，按 UTF-8 保存后刷新。'
     if ($consoleInput) {
         # Read Ctrl+C as a key, so CMD never receives a batch-break event.
