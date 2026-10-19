@@ -1,0 +1,27 @@
+name: Update v1.2 Release Notes
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/RELEASE_v1.2.md
+      - .github/workflows/release-notes.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-notes-v1.2
+  cancel-in-progress: false
+
+jobs:
+  release-notes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update published release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release edit v1.2 --notes-file docs/RELEASE_v1.2.md
