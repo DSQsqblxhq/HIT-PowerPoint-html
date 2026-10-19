@@ -104,15 +104,31 @@ const until = async (condition, message, timeout = 20000) => {
       explorerWindow = source.hwnd;
       if (!explorerWindow) console.log('Explorer fixture unavailable: testing native cursor-display fallback, placement and fullscreen');
     }
+    const openPresenter = async session => {
+      await session.page.bringToFront();
+      const pending = session.page.waitForEvent('popup');
+      await session.page.locator('#presenter-start').click();
+      try { return await pending; }
+      catch (error) {
+        console.error('Presenter popup diagnostics:', await session.page.evaluate(async () => ({
+          role: document.documentElement.dataset.role,
+          status: document.getElementById('presenter-status').textContent,
+          hint: document.getElementById('presenter-hint')?.textContent,
+          permission: await navigator.permissions.query({name: 'window-management'}).then(p => p.state).catch(String),
+          focused: document.hasFocus(),
+          active: document.activeElement?.outerHTML.slice(0, 250),
+          activation: navigator.userActivation.isActive,
+        })));
+        throw error;
+      }
+    };
     const first = await start('first');
     const cdp = await first.context.newCDPSession(first.page);
     if (process.platform !== 'win32') {
       await cdp.send('Emulation.addScreen', {left: 1920, top: 0, width: 2560, height: 1440, label: 'Audience display'});
     }
     await cdp.send('Browser.setPermission', {permission: {name: 'window-management'}, setting: 'granted', origin: new URL(first.info.url).origin});
-    const popup = first.page.waitForEvent('popup');
-    await first.page.keyboard.press('s');
-    const viewer = await popup;
+    const viewer = await openPresenter(first);
     await viewer.waitForLoadState();
     await first.page.waitForFunction(() => document.getElementById('presenter-status').classList.contains('connected'));
     if (process.platform !== 'win32') {
@@ -140,9 +156,7 @@ const until = async (condition, message, timeout = 20000) => {
     assert.equal(third.info.profile, first.info.profile, 'Normal relaunch should reuse presentation preferences');
     const thirdCDP = await third.context.newCDPSession(third.page);
     await thirdCDP.send('Browser.setPermission', {permission: {name: 'window-management'}, setting: 'granted', origin: new URL(third.info.url).origin});
-    const nextPopup = third.page.waitForEvent('popup');
-    await third.page.keyboard.press('s');
-    await nextPopup;
+    await openPresenter(third);
     assert.equal(await third.page.locator('#presenter-script').evaluate(e => getComputedStyle(e).getPropertyValue('--p-note-size')), font);
     await quit(third, '\x03');
     const fourth = await start('fourth', first.info.port);
