@@ -26,7 +26,8 @@ const get = (url, options = {}) => new Promise((resolve, reject) => {
   const payload = fs.readFileSync(path.join(root, 'dist/HIT-HTML-local.cmd'));
   fs.writeFileSync(single, payload);
   assert.deepEqual(fs.readdirSync(folder), ['HIT-HTML-local.cmd']);
-  assert.deepEqual(Buffer.from(payload.toString('utf8').match(/\r?\n<!-- === HIT HTML START === -->\r?\n([\s\S]*)$/)[1]), content);
+  const editable = payload.toString('utf8').match(/\r?\n<!-- === HIT HTML START === -->\r?\n([\s\S]*)$/)[1];
+  for (const marker of ['const CONFIG=', 'const NOTES=[', '在此填写汇报题目', '【开场】各位老师好']) assert.ok(editable.includes(marker));
   const powershell = process.env.HIT_POWERSHELL_EXECUTABLE || (process.platform === 'win32' ? 'powershell.exe' : 'pwsh');
   const env = {...process.env, HIT_PRESENTATION_SELF: single, HIT_PRESENTATION_POWERSHELL: powershell, HIT_PRESENTATION_PORT: '0', HIT_PRESENTATION_NO_BROWSER: '1', HIT_PRESENTATION_READY_FILE: ready};
   const bootstrap = payload.toString('utf8').split(/\r?\n/).find(line => line.includes(' -Command '));
@@ -66,8 +67,9 @@ const get = (url, options = {}) => new Promise((resolve, reject) => {
     assert.equal((await get(url, {method: 'POST'})).status, 405);
     assert.equal((await get(url, {headers: {Host: 'example.com'}})).status, 400);
     assert.equal((await get(new URL('/favicon.ico', url))).status, 204);
-    const updated = Buffer.concat([content, Buffer.from('\n<!-- local edit -->\n')]);
-    fs.writeFileSync(single, Buffer.concat([payload, Buffer.from('\n<!-- local edit -->\n')]));
+    const edit = text => text.replace('在此填写汇报题目', '单文件编辑测试').replace('title:"研究背景"', 'title:"章节编辑测试"').replace('【开场】各位老师好', '【开场】本地讲稿编辑');
+    const updated = Buffer.from(edit(content.toString('utf8')));
+    fs.writeFileSync(single, edit(payload.toString('utf8')));
     assert.deepEqual((await get(url)).body, updated);
     fs.writeFileSync(single, payload);
     assert.deepEqual(fs.readdirSync(folder).sort(), ['HIT-HTML-local.cmd', 'server-ready.json']);

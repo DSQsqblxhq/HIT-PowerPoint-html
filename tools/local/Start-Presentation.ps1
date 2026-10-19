@@ -12,7 +12,18 @@ function Read-Presentation {
     $source = [System.IO.File]::ReadAllText($SelfPath, [System.Text.Encoding]::UTF8)
     $match = [regex]::Match($source, '(?s)\r?\n<!-- === HIT HTML START === -->\r?\n(.*)\z')
     if (-not $match.Success) { throw '未找到内嵌 HTML，请重新下载完整的 HIT-HTML-local.cmd。' }
-    return ,([System.Text.Encoding]::UTF8.GetBytes($match.Groups[1].Value))
+    $html = [regex]::Replace($match.Groups[1].Value, '<!--HIT-GZIP:([A-Za-z0-9+/=]+)-->', [System.Text.RegularExpressions.MatchEvaluator]{
+        param($asset)
+        $assetStream = [System.IO.MemoryStream]::new([Convert]::FromBase64String($asset.Groups[1].Value), $false)
+        $assetGzip = [System.IO.Compression.GZipStream]::new($assetStream, [System.IO.Compression.CompressionMode]::Decompress)
+        $assetReader = [System.IO.StreamReader]::new($assetGzip, [System.Text.Encoding]::UTF8)
+        try { $assetReader.ReadToEnd() } finally {
+            $assetReader.Dispose()
+            $assetGzip.Dispose()
+            $assetStream.Dispose()
+        }
+    })
+    return ,([System.Text.Encoding]::UTF8.GetBytes($html))
 }
 [void](Read-Presentation)
 $listener = $null
@@ -45,7 +56,7 @@ try {
     Write-Host $url
     Write-Host '请保持此窗口打开；结束后按 Ctrl+C 关闭。'
     Write-Host '双屏：系统设为扩展 -> 点击演讲者 -> 允许本机地址的屏幕管理权限。'
-    Write-Host '修改内容：用文本编辑器打开此 CMD，编辑末尾的 HTML，按 UTF-8 保存后刷新页面。'
+    Write-Host '修改内容：编辑此 CMD 末尾的页面文字、CONFIG 和 NOTES，按 UTF-8 保存后刷新。'
     if ($ReadyFile) {
         @{ url = $url; port = $boundPort; address = '127.0.0.1' } |
             ConvertTo-Json -Compress | Set-Content -LiteralPath $ReadyFile -Encoding UTF8

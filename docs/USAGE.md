@@ -4,9 +4,9 @@
 
 下载并解压仓库后，直接用浏览器打开 `HIT-HTML.html`。模板不依赖在线脚本、字体服务或后端，基础放映不需要联网。
 
-需要在本地自动将观众窗口投放到副屏时，Windows 用户只需下载并双击 [HIT-HTML-local.cmd](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.2/HIT-HTML-local.cmd)。HTML、启动服务、说明和来源许可都在这一个文件中，不需要配套文件；[兼容 ZIP](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.2/HIT-HTML-local-v1.2.zip)中也仅有同一个 CMD。浏览器会通过 `http://127.0.0.1:8765/HIT-HTML.html` 读取内嵌页面，不依赖公网。无需安装 Python，也不需要管理员权限；演示期间保持启动窗口打开，结束后按 `Ctrl+C` 关闭本机服务。端口占用时，启动器会选择后续可用端口，以命令行显示的地址为准。
+需要在本地自动将观众窗口投放到副屏时，Windows 用户只需下载并双击 [HIT-HTML-local.cmd](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.2/HIT-HTML-local.cmd)。HTML、启动服务、说明和来源许可都在这一个文件中，不需要配套文件。浏览器会通过 `http://127.0.0.1:8765/HIT-HTML.html` 读取内嵌页面，不依赖公网。无需安装 Python，也不需要管理员权限；演示期间保持启动窗口打开，结束后按 `Ctrl+C` 关闭本机服务。端口占用时，启动器会选择后续可用端口，以命令行显示的地址为准。
 
-启动器优先使用已安装的 Edge 或 Chrome；若未自动打开，请将显示的地址复制到新版 Edge / Chrome。编辑时用文本编辑器打开该 CMD，在末尾找到 `<!doctype html>`，修改后面的 HTML，保留前面的启动代码和分隔标记，按 UTF-8 保存后刷新即可。服务每次请求都从 CMD 自身重新读取页面，不会解压或生成临时 HTML。若编辑器使用 CRLF 换行也可以正常启动。
+启动器优先使用已安装的 Edge 或 Chrome；若未自动打开，请将显示的地址复制到新版 Edge / Chrome。编辑时用文本编辑器打开该 CMD，在末尾的 HTML 区域修改页面文字、`CONFIG` 章节及 `NOTES` 讲稿，保留启动代码、分隔标记和 `HIT-GZIP` 注释，按 UTF-8 保存后刷新即可。固定 SVG、样式和脚本在 CMD 内压缩，服务每次请求时在内存中还原，不会生成临时 HTML。需要修改这些资源时，编辑独立 HTML 后重新构建 CMD。若编辑器使用 CRLF 换行也可以正常启动。
 
 单个 `.html` 不能自行启动本机服务，因此该自动本地双屏版本使用 `.cmd` 扩展名；原 `HIT-HTML.html` 的直接放映方式继续保留。仓库开发者可运行 `python tools/package_local.py`，从根目录 HTML 和启动器源代码生成 `dist/HIT-HTML-local.cmd`；这是构建步骤，使用者无需 Python。
 
