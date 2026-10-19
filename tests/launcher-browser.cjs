@@ -37,9 +37,10 @@ const until = async (condition, message, timeout = 20000) => {
     assert.equal(code, 0, errors);
     return operation === 'Open' ? JSON.parse(output.trim()) : null;
   };
+  // Headless Chrome has no native window-close signal; flush DOM storage promptly before forced teardown.
   const start = async (id, port = '0') => {
     const ready = path.join(folder, `ready-${id}.json`);
-    const env = {...process.env, POWERSHELL_TELEMETRY_OPTOUT: '1', POWERSHELL_UPDATECHECK: 'Off', HIT_PRESENTATION_SELF: single, HIT_PRESENTATION_POWERSHELL: powershell, HIT_PRESENTATION_NO_BROWSER: '0', HIT_PRESENTATION_PORT: String(port), HIT_PRESENTATION_READY_FILE: ready, HIT_PRESENTATION_PROFILE_ROOT: profiles, HIT_PRESENTATION_BROWSER: executable, HIT_PRESENTATION_BROWSER_ARGUMENTS: JSON.stringify([...(process.platform === 'win32' ? [] : ['--headless=new']), '--no-sandbox', '--disable-gpu', '--disable-background-networking', '--remote-debugging-port=0'])};
+    const env = {...process.env, POWERSHELL_TELEMETRY_OPTOUT: '1', POWERSHELL_UPDATECHECK: 'Off', HIT_PRESENTATION_SELF: single, HIT_PRESENTATION_POWERSHELL: powershell, HIT_PRESENTATION_NO_BROWSER: '0', HIT_PRESENTATION_PORT: String(port), HIT_PRESENTATION_READY_FILE: ready, HIT_PRESENTATION_PROFILE_ROOT: profiles, HIT_PRESENTATION_BROWSER: executable, HIT_PRESENTATION_BROWSER_ARGUMENTS: JSON.stringify([...(process.platform === 'win32' ? [] : ['--headless=new', '--enable-aggressive-domstorage-flushing']), '--no-sandbox', '--disable-gpu', '--disable-background-networking', '--remote-debugging-port=0'])};
     const processHandle = process.platform === 'win32'
       ? spawn(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', `""${single}""`], {windowsHide: true, windowsVerbatimArguments: true, env})
       : spawn(powershell, ['-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', bootstrap], {env});
