@@ -9,6 +9,103 @@
 $ErrorActionPreference = 'Stop'
 if (-not $SelfPath) { throw '请双击生成的 HIT-HTML-local.cmd。' }
 $SelfPath = (Resolve-Path -LiteralPath $SelfPath).Path
+$onWindows = [Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT
+$launchBounds = $null
+$launchSource = 0L
+if ($onWindows -and -not $NoBrowser) {
+    # Snapshot the source Explorer window before browser startup changes focus.
+    $sourceWindows = @()
+    $shell = $null
+    try {
+        $shell = New-Object -ComObject Shell.Application
+        foreach ($window in $shell.Windows()) {
+            try {
+                foreach ($item in $window.Document.SelectedItems()) {
+                    if ($item.Path -ieq $SelfPath) { $sourceWindows += [long]$window.HWND; break }
+                }
+            } catch {}
+        }
+    } catch {} finally {
+        if ($shell) { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($shell) }
+    }
+    Add-Type -TypeDefinition @'
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+public static class HitLaunchWindow {
+    [StructLayout(LayoutKind.Sequential)] struct Point { public int X, Y; }
+    [StructLayout(LayoutKind.Sequential)] struct Rect { public int Left, Top, Right, Bottom; }
+    [StructLayout(LayoutKind.Sequential)] struct MonitorInfo { public int Size; public Rect Bounds, Work; public uint Flags; }
+    delegate bool WindowCallback(IntPtr window, IntPtr data);
+    [DllImport("user32.dll")] static extern bool EnumWindows(WindowCallback callback, IntPtr data);
+    [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr window);
+    [DllImport("user32.dll")] static extern IntPtr GetAncestor(IntPtr window, uint flags);
+    [DllImport("user32.dll")] static extern bool GetCursorPos(out Point point);
+    [DllImport("user32.dll")] static extern IntPtr MonitorFromPoint(Point point, uint flags);
+    [DllImport("user32.dll")] static extern IntPtr MonitorFromWindow(IntPtr window, uint flags);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern bool GetMonitorInfo(IntPtr monitor, ref MonitorInfo info);
+    [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr window, out Rect rect);
+    [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
+    [DllImport("user32.dll")] static extern bool SetWindowPos(IntPtr window, IntPtr after, int x, int y, int width, int height, uint flags);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetWindowLong(IntPtr window, int index);
+    [DllImport("user32.dll")] static extern bool PostMessage(IntPtr window, uint message, IntPtr key, IntPtr data);
+    [DllImport("user32.dll")] static extern IntPtr SetThreadDpiAwarenessContext(IntPtr context);
+    public static long SourceWindow;
+    public static int LastStyle;
+    static IntPtr EnterDpi() { try { return SetThreadDpiAwarenessContext(new IntPtr(-4)); } catch (EntryPointNotFoundException) { return IntPtr.Zero; } }
+    static void LeaveDpi(IntPtr old) { if (old != IntPtr.Zero) SetThreadDpiAwarenessContext(old); }
+    public static int[] Capture(long[] candidates) {
+        IntPtr old = EnterDpi();
+        try {
+            var sources = new HashSet<IntPtr>();
+            foreach (long candidate in candidates ?? new long[0]) sources.Add(GetAncestor(new IntPtr(candidate), 2));
+            IntPtr source = IntPtr.Zero;
+            EnumWindows(delegate(IntPtr window, IntPtr unused) {
+                if (sources.Contains(window) && IsWindowVisible(window)) { source = window; return false; }
+                return true;
+            }, IntPtr.Zero);
+            SourceWindow = source.ToInt64();
+            Point cursor;
+            GetCursorPos(out cursor);
+            IntPtr monitor = source != IntPtr.Zero ? MonitorFromWindow(source, 2) : MonitorFromPoint(cursor, 2);
+            var info = new MonitorInfo { Size = Marshal.SizeOf(typeof(MonitorInfo)) };
+            if (!GetMonitorInfo(monitor, ref info)) return null;
+            Rect r = info.Bounds;
+            return new[] { r.Left, r.Top, r.Right - r.Left, r.Bottom - r.Top };
+        } finally { LeaveDpi(old); }
+    }
+    public static int[] Place(long handle, uint owner, int[] bounds) {
+        IntPtr old = EnterDpi();
+        try {
+            IntPtr window = new IntPtr(handle);
+            uint actualOwner;
+            GetWindowThreadProcessId(window, out actualOwner);
+            if (actualOwner != owner || !IsWindowVisible(window)) return null;
+            Rect r;
+            if (!GetWindowRect(window, out r)) return null;
+            if (r.Left != bounds[0] || r.Top != bounds[1] || r.Right - r.Left != bounds[2] || r.Bottom - r.Top != bounds[3]) {
+                SetWindowPos(window, IntPtr.Zero, bounds[0], bounds[1], bounds[2], bounds[3], 0x14);
+                if (!GetWindowRect(window, out r)) return null;
+            }
+            return new[] { r.Left, r.Top, r.Right - r.Left, r.Bottom - r.Top };
+        } finally { LeaveDpi(old); }
+    }
+    public static bool Fullscreen(long handle, uint owner) {
+        IntPtr window = new IntPtr(handle);
+        uint actualOwner;
+        GetWindowThreadProcessId(window, out actualOwner);
+        if (actualOwner != owner || !IsWindowVisible(window)) return false;
+        // Keep a restored fullscreen window; otherwise post F11 to this window only.
+        LastStyle = GetWindowLong(window, -16);
+        if ((LastStyle & 0x00c40000) == 0) return true;
+        return PostMessage(window, 0x0100, new IntPtr(0x7a), new IntPtr(0x00570001)) &&
+            PostMessage(window, 0x0101, new IntPtr(0x7a), new IntPtr(unchecked((int)0xc0570001)));
+    }
+}
+'@
+    $launchBounds = [HitLaunchWindow]::Capture([long[]]$sourceWindows)
+    $launchSource = [HitLaunchWindow]::SourceWindow
+}
 function Read-Presentation {
     $source = [System.IO.File]::ReadAllText($SelfPath, [System.Text.Encoding]::UTF8)
     $match = [regex]::Match($source, '(?s)\r?\n<!-- === HIT HTML START === -->\r?\n(.*)\z')
@@ -42,8 +139,7 @@ for ($candidate = $Port; $candidate -le $lastPort; $candidate++) {
 }
 $boundPort = $listener.LocalEndpoint.Port
 $url = 'http://127.0.0.1:{0}/HIT-HTML.html' -f $boundPort
-$browserState = @{ Process = $null; Lock = $null; Path = $null; OwnerFile = $null; Temporary = $false }
-$onWindows = [Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT
+$browserState = @{ Process = $null; Lock = $null; Path = $null; OwnerFile = $null; Temporary = $false; Window = 0L; WindowRect = $null; Placed = $false; PlaceUntil = $null; WindowSince = $null; PageServed = $false; FullscreenRequested = $false }
 $consoleInput = -not [Console]::IsInputRedirected
 $oldControlC = $null
 $stdinStream = $null
@@ -75,12 +171,44 @@ function Start-PresentationBrowser([string]$Executable) {
     }
     # Quotes belong in ArgumentList on Windows PowerShell, including paths with spaces.
     $arguments = @('--no-first-run', '--no-default-browser-check', '--disable-background-mode', ('--user-data-dir="{0}"' -f $browserState.Path), ('--app="{0}"' -f $url))
+    if ($launchBounds) {
+        $arguments += ('--window-position={0},{1}' -f $launchBounds[0], $launchBounds[1])
+        $arguments += ('--window-size={0},{1}' -f $launchBounds[2], $launchBounds[3])
+        $browserState.PlaceUntil = [DateTime]::UtcNow.AddSeconds(15)
+    }
     if ($env:HIT_PRESENTATION_BROWSER_ARGUMENTS) {
         foreach ($argument in (ConvertFrom-Json -InputObject $env:HIT_PRESENTATION_BROWSER_ARGUMENTS)) { $arguments += [string]$argument }
     }
     [void][IO.Directory]::CreateDirectory($browserState.Path)
     $browserState.Process = Start-Process -FilePath $Executable -ArgumentList $arguments -RedirectStandardOutput (Join-Path $browserState.Path 'hit-launcher.out.log') -RedirectStandardError (Join-Path $browserState.Path 'hit-launcher.err.log') -PassThru
     if ($browserState.OwnerFile) { [IO.File]::WriteAllText($browserState.OwnerFile, [string]$browserState.Process.Id) }
+}
+
+function Write-ReadyInfo {
+    if (-not $ReadyFile) { return }
+    @{ url = $url; port = $boundPort; address = '127.0.0.1'; browserPid = $(if ($browserState.Process) { $browserState.Process.Id } else { 0 }); profile = $browserState.Path; launchBounds = $launchBounds; launchSource = $launchSource; windowPlaced = $browserState.Placed; windowRect = $browserState.WindowRect; windowStyle = $(if ($launchBounds) { [HitLaunchWindow]::LastStyle } else { 0 }) } |
+        ConvertTo-Json -Compress | Set-Content -LiteralPath ($ReadyFile + '.tmp') -Encoding UTF8
+    Move-Item -LiteralPath ($ReadyFile + '.tmp') -Destination $ReadyFile -Force
+}
+
+function Update-LaunchWindow {
+    if (-not $browserState.PlaceUntil -or -not $browserState.Process) { return }
+    if ([DateTime]::UtcNow -gt $browserState.PlaceUntil) { $browserState.PlaceUntil = $null; return }
+    if (-not $browserState.Window) {
+        $browserState.Process.Refresh()
+        $browserState.Window = $browserState.Process.MainWindowHandle.ToInt64()
+        if (-not $browserState.Window) { return }
+        $browserState.WindowSince = [DateTime]::UtcNow
+    }
+    # Pin only the initial app window; never reposition a later audience popup.
+    $browserState.WindowRect = [HitLaunchWindow]::Place($browserState.Window, [uint32]$browserState.Process.Id, [int[]]$launchBounds)
+    if (-not $browserState.FullscreenRequested -and $browserState.PageServed -and ([DateTime]::UtcNow - $browserState.WindowSince).TotalSeconds -ge 0.25) {
+        $browserState.FullscreenRequested = [HitLaunchWindow]::Fullscreen($browserState.Window, [uint32]$browserState.Process.Id)
+    }
+    if ($browserState.WindowRect -and $browserState.FullscreenRequested -and ([DateTime]::UtcNow - $browserState.WindowSince).TotalSeconds -ge 1) {
+        $browserState.Placed = (@(0..3 | Where-Object { $browserState.WindowRect[$_] -ne $launchBounds[$_] }).Count -eq 0)
+        if ($browserState.Placed) { $browserState.PlaceUntil = $null; Write-ReadyInfo }
+    }
 }
 
 function Stop-PresentationBrowser {
@@ -156,11 +284,7 @@ try {
             Write-Host $_.Exception.Message
         }
     }
-    if ($ReadyFile) {
-        @{ url = $url; port = $boundPort; address = '127.0.0.1'; browserPid = $(if ($browserState.Process) { $browserState.Process.Id } else { 0 }); profile = $browserState.Path } |
-            ConvertTo-Json -Compress | Set-Content -LiteralPath ($ReadyFile + '.tmp') -Encoding UTF8
-        Move-Item -LiteralPath ($ReadyFile + '.tmp') -Destination $ReadyFile -Force
-    }
+    Write-ReadyInfo
     while ($true) {
         if ($consoleInput -and [Console]::KeyAvailable) {
             $key = [Console]::ReadKey($true)
@@ -171,6 +295,7 @@ try {
             else { $stdinTask = $stdinStream.ReadAsync($stdinByte, 0, 1) }
         }
         if ($browserState.Process -and $browserState.Process.HasExited) { break }
+        Update-LaunchWindow
         if (-not $listener.Pending()) { Start-Sleep -Milliseconds 50; continue }
         $client = $listener.AcceptTcpClient()
         $stream = $null
@@ -200,6 +325,7 @@ try {
                 Send-Response $stream 400 'Bad Request' ([byte[]]@()) $headOnly
             } elseif ($requestPath -in @('/', '/HIT-HTML.html')) {
                 Send-Response $stream 200 'OK' (Read-Presentation) $headOnly
+                if (-not $headOnly) { $browserState.PageServed = $true }
             } elseif ($requestPath -eq '/favicon.ico') {
                 Send-Response $stream 204 'No Content' ([byte[]]@()) $headOnly
             } else {

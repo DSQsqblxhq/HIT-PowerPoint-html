@@ -27,9 +27,19 @@ const until = async (condition, message, timeout = 20000) => {
   const powershell = process.env.HIT_POWERSHELL_EXECUTABLE || (process.platform === 'win32' ? 'powershell.exe' : 'pwsh');
   const bootstrap = fs.readFileSync(single, 'utf8').split(/\r?\n/).find(line => line.includes(' -Command ')).match(/ -Command "(.*)"$/)[1];
   const sessions = [];
+  let explorerWindow = 0;
+  const explorer = async (operation, window = 0) => {
+    const child = spawn(powershell, ['-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(__dirname, 'explorer-source.ps1'), '-Operation', operation, '-Path', single, '-Window', String(window)], {env: {...process.env, POWERSHELL_TELEMETRY_OPTOUT: '1', POWERSHELL_UPDATECHECK: 'Off'}});
+    let output = '', errors = '';
+    child.stdout.on('data', data => {output += data;});
+    child.stderr.on('data', data => {errors += data;});
+    const code = await new Promise((resolve, reject) => {child.on('exit', resolve); child.on('error', reject);});
+    assert.equal(code, 0, errors);
+    return operation === 'Open' ? JSON.parse(output.trim()) : null;
+  };
   const start = async (id, port = '0') => {
     const ready = path.join(folder, `ready-${id}.json`);
-    const env = {...process.env, POWERSHELL_TELEMETRY_OPTOUT: '1', POWERSHELL_UPDATECHECK: 'Off', HIT_PRESENTATION_SELF: single, HIT_PRESENTATION_POWERSHELL: powershell, HIT_PRESENTATION_NO_BROWSER: '0', HIT_PRESENTATION_PORT: String(port), HIT_PRESENTATION_READY_FILE: ready, HIT_PRESENTATION_PROFILE_ROOT: profiles, HIT_PRESENTATION_BROWSER: executable, HIT_PRESENTATION_BROWSER_ARGUMENTS: JSON.stringify(['--headless=new', '--no-sandbox', '--disable-gpu', '--disable-background-networking', '--remote-debugging-port=0'])};
+    const env = {...process.env, POWERSHELL_TELEMETRY_OPTOUT: '1', POWERSHELL_UPDATECHECK: 'Off', HIT_PRESENTATION_SELF: single, HIT_PRESENTATION_POWERSHELL: powershell, HIT_PRESENTATION_NO_BROWSER: '0', HIT_PRESENTATION_PORT: String(port), HIT_PRESENTATION_READY_FILE: ready, HIT_PRESENTATION_PROFILE_ROOT: profiles, HIT_PRESENTATION_BROWSER: executable, HIT_PRESENTATION_BROWSER_ARGUMENTS: JSON.stringify([...(process.platform === 'win32' ? [] : ['--headless=new']), '--no-sandbox', '--disable-gpu', '--disable-background-networking', '--remote-debugging-port=0'])};
     const processHandle = process.platform === 'win32'
       ? spawn(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', `""${single}""`], {windowsHide: true, windowsVerbatimArguments: true, env})
       : spawn(powershell, ['-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', bootstrap], {env});
@@ -63,6 +73,21 @@ const until = async (condition, message, timeout = 20000) => {
     await until(() => session.context.pages().some(matches), 'App page did not open');
     session.page = session.context.pages().find(matches);
     await session.page.waitForLoadState();
+    const cdp = await session.context.newCDPSession(session.page);
+    if (process.platform === 'win32') {
+      await until(async () => (await cdp.send('Browser.getWindowForTarget')).bounds.windowState === 'fullscreen', 'Initial presentation must start in browser fullscreen');
+    }
+    if (process.platform === 'win32') {
+      await until(() => {
+        try { return JSON.parse(fs.readFileSync(ready, 'utf8').replace(/^\uFEFF/, '')).windowPlaced; }
+        catch { return false; }
+      }, 'Native placement did not settle on the launch display');
+      const report = JSON.parse(fs.readFileSync(ready, 'utf8').replace(/^\uFEFF/, ''));
+      assert.equal(report.launchSource, explorerWindow, 'Use the selected CMD Explorer window even after browser focus changes');
+      assert.deepEqual(report.windowRect, report.launchBounds);
+      const bounds = (await cdp.send('Browser.getWindowForTarget')).bounds;
+      assert.deepEqual([bounds.left, bounds.top, bounds.width, bounds.height], report.launchBounds);
+    }
     return session;
   };
   const quit = async (session, key) => {
@@ -74,20 +99,31 @@ const until = async (condition, message, timeout = 20000) => {
     assert.doesNotMatch(session.logs, /Terminate batch job|终止批处理|\(Y\/N\)/i);
   };
   try {
+    if (process.platform === 'win32') explorerWindow = (await explorer('Open')).hwnd;
     const first = await start('first');
     const cdp = await first.context.newCDPSession(first.page);
+    if (process.platform !== 'win32') {
+      await cdp.send('Emulation.addScreen', {left: 1920, top: 0, width: 2560, height: 1440, label: 'Audience display'});
+    }
     await cdp.send('Browser.setPermission', {permission: {name: 'window-management'}, setting: 'granted', origin: new URL(first.info.url).origin});
     const popup = first.page.waitForEvent('popup');
     await first.page.keyboard.press('s');
     const viewer = await popup;
     await viewer.waitForLoadState();
     await first.page.waitForFunction(() => document.getElementById('presenter-status').classList.contains('connected'));
+    if (process.platform !== 'win32') {
+      await viewer.waitForFunction(() => screenX >= 1920 && !!document.fullscreenElement);
+    }
     await first.page.locator('#presenter-font-up').click();
     const font = await first.page.locator('#presenter-script').evaluate(e => getComputedStyle(e).getPropertyValue('--p-note-size'));
     assert.equal(first.context.pages().length, 2);
     const second = await start('second');
     assert.notEqual(second.info.profile, first.info.profile, 'Simultaneous launchers need distinct owned browsers');
     assert.notEqual(second.info.browserPid, first.info.browserPid);
+    // Save an intentionally small normal window; relaunch must override remembered bounds.
+    const savedWindow = (await cdp.send('Browser.getWindowForTarget')).windowId;
+    await cdp.send('Browser.setWindowBounds', {windowId: savedWindow, bounds: {windowState: 'normal'}});
+    await cdp.send('Browser.setWindowBounds', {windowId: savedWindow, bounds: {left: 50, top: 50, width: 900, height: 650}});
     // Let Chromium commit asynchronous DOM storage before the headless process fallback.
     await pause(6000);
     await quit(first, 'q');
@@ -103,7 +139,9 @@ const until = async (condition, message, timeout = 20000) => {
     await nextPopup;
     assert.equal(await third.page.locator('#presenter-script').evaluate(e => getComputedStyle(e).getPropertyValue('--p-note-size')), font);
     await quit(third, '\x03');
-    console.log('PASS managed browser: Q/Esc/Ctrl+C close workbench, audience and server; concurrent browsers survive; preferences persist');
+    const fourth = await start('fourth', first.info.port);
+    await quit(fourth, 'q');
+    console.log('PASS managed browser: launch display, initial fullscreen, restored-bounds override, Q/Esc/Ctrl+C, isolated concurrent browsers and persistent preferences');
   } finally {
     for (const session of sessions) {
       if (!session.closed) {
@@ -118,6 +156,7 @@ const until = async (condition, message, timeout = 20000) => {
       }
       if (session.browser?.isConnected()) await session.browser.close().catch(() => {});
     }
+    if (explorerWindow) await explorer('Close', explorerWindow);
     fs.rmSync(folder, {recursive: true, force: true});
   }
 })().catch(error => {console.error(error); process.exitCode = 1;});
