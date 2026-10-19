@@ -51,7 +51,6 @@ public static class HitLaunchWindow {
     [DllImport("user32.dll")] static extern bool PostMessage(IntPtr window, uint message, IntPtr key, IntPtr data);
     [DllImport("user32.dll")] static extern IntPtr SetThreadDpiAwarenessContext(IntPtr context);
     public static long SourceWindow;
-    public static int LastStyle;
     static IntPtr EnterDpi() { try { return SetThreadDpiAwarenessContext(new IntPtr(-4)); } catch (EntryPointNotFoundException) { return IntPtr.Zero; } }
     static void LeaveDpi(IntPtr old) { if (old != IntPtr.Zero) SetThreadDpiAwarenessContext(old); }
     public static int[] Capture(long[] candidates) {
@@ -70,7 +69,7 @@ public static class HitLaunchWindow {
             IntPtr monitor = source != IntPtr.Zero ? MonitorFromWindow(source, 2) : MonitorFromPoint(cursor, 2);
             var info = new MonitorInfo { Size = Marshal.SizeOf(typeof(MonitorInfo)) };
             if (!GetMonitorInfo(monitor, ref info)) return null;
-            Rect r = info.Bounds;
+            Rect r = info.Work;
             return new[] { r.Left, r.Top, r.Right - r.Left, r.Bottom - r.Top };
         } finally { LeaveDpi(old); }
     }
@@ -90,14 +89,13 @@ public static class HitLaunchWindow {
             return new[] { r.Left, r.Top, r.Right - r.Left, r.Bottom - r.Top };
         } finally { LeaveDpi(old); }
     }
-    public static bool Fullscreen(long handle, uint owner) {
+    public static bool RestoreWindowed(long handle, uint owner) {
         IntPtr window = new IntPtr(handle);
         uint actualOwner;
         GetWindowThreadProcessId(window, out actualOwner);
         if (actualOwner != owner || !IsWindowVisible(window)) return false;
-        // Keep a restored fullscreen window; otherwise post F11 to this window only.
-        LastStyle = GetWindowLong(window, -16);
-        if ((LastStyle & 0x00c40000) == 0) return true;
+        // Exit only a remembered native fullscreen state of the initial app window.
+        if ((GetWindowLong(window, -16) & 0x00c40000) != 0) return true;
         return PostMessage(window, 0x0100, new IntPtr(0x7a), new IntPtr(0x00570001)) &&
             PostMessage(window, 0x0101, new IntPtr(0x7a), new IntPtr(unchecked((int)0xc0570001)));
     }
@@ -139,7 +137,7 @@ for ($candidate = $Port; $candidate -le $lastPort; $candidate++) {
 }
 $boundPort = $listener.LocalEndpoint.Port
 $url = 'http://127.0.0.1:{0}/HIT-HTML.html' -f $boundPort
-$browserState = @{ Process = $null; Lock = $null; Path = $null; OwnerFile = $null; Temporary = $false; Window = 0L; WindowRect = $null; Placed = $false; PlaceUntil = $null; WindowSince = $null; PageServed = $false; FullscreenRequested = $false }
+$browserState = @{ Process = $null; Lock = $null; Path = $null; OwnerFile = $null; Temporary = $false; Window = 0L; WindowRect = $null; Placed = $false; PlaceUntil = $null; WindowSince = $null; PageServed = $false; WindowedRequested = $false }
 $consoleInput = -not [Console]::IsInputRedirected
 $oldControlC = $null
 $stdinStream = $null
@@ -186,7 +184,7 @@ function Start-PresentationBrowser([string]$Executable) {
 
 function Write-ReadyInfo {
     if (-not $ReadyFile) { return }
-    @{ url = $url; port = $boundPort; address = '127.0.0.1'; browserPid = $(if ($browserState.Process) { $browserState.Process.Id } else { 0 }); profile = $browserState.Path; launchBounds = $launchBounds; launchSource = $launchSource; windowPlaced = $browserState.Placed; windowRect = $browserState.WindowRect; windowStyle = $(if ($launchBounds) { [HitLaunchWindow]::LastStyle } else { 0 }) } |
+    @{ url = $url; port = $boundPort; address = '127.0.0.1'; browserPid = $(if ($browserState.Process) { $browserState.Process.Id } else { 0 }); profile = $browserState.Path; launchBounds = $launchBounds; launchSource = $launchSource; windowPlaced = $browserState.Placed; windowRect = $browserState.WindowRect } |
         ConvertTo-Json -Compress | Set-Content -LiteralPath ($ReadyFile + '.tmp') -Encoding UTF8
     Move-Item -LiteralPath ($ReadyFile + '.tmp') -Destination $ReadyFile -Force
 }
@@ -202,10 +200,10 @@ function Update-LaunchWindow {
     }
     # Pin only the initial app window; never reposition a later audience popup.
     $browserState.WindowRect = [HitLaunchWindow]::Place($browserState.Window, [uint32]$browserState.Process.Id, [int[]]$launchBounds)
-    if (-not $browserState.FullscreenRequested -and $browserState.PageServed -and ([DateTime]::UtcNow - $browserState.WindowSince).TotalSeconds -ge 0.25) {
-        $browserState.FullscreenRequested = [HitLaunchWindow]::Fullscreen($browserState.Window, [uint32]$browserState.Process.Id)
+    if (-not $browserState.WindowedRequested -and $browserState.PageServed -and ([DateTime]::UtcNow - $browserState.WindowSince).TotalSeconds -ge 0.25) {
+        $browserState.WindowedRequested = [HitLaunchWindow]::RestoreWindowed($browserState.Window, [uint32]$browserState.Process.Id)
     }
-    if ($browserState.WindowRect -and $browserState.FullscreenRequested -and ([DateTime]::UtcNow - $browserState.WindowSince).TotalSeconds -ge 1) {
+    if ($browserState.WindowRect -and $browserState.WindowedRequested -and ([DateTime]::UtcNow - $browserState.WindowSince).TotalSeconds -ge 1) {
         $browserState.Placed = (@(0..3 | Where-Object { $browserState.WindowRect[$_] -ne $launchBounds[$_] }).Count -eq 0)
         if ($browserState.Placed) { $browserState.PlaceUntil = $null; Write-ReadyInfo }
     }

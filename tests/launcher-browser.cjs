@@ -75,9 +75,6 @@ const until = async (condition, message, timeout = 20000) => {
     await session.page.waitForLoadState();
     const cdp = await session.context.newCDPSession(session.page);
     if (process.platform === 'win32') {
-      await until(async () => (await cdp.send('Browser.getWindowForTarget')).bounds.windowState === 'fullscreen', 'Initial presentation must start in browser fullscreen');
-    }
-    if (process.platform === 'win32') {
       await until(() => {
         try { return JSON.parse(fs.readFileSync(ready, 'utf8').replace(/^\uFEFF/, '')).windowPlaced; }
         catch { return false; }
@@ -86,8 +83,13 @@ const until = async (condition, message, timeout = 20000) => {
       if (explorerWindow) assert.equal(report.launchSource, explorerWindow, 'Use the selected CMD Explorer window even after browser focus changes');
       assert.deepEqual(report.windowRect, report.launchBounds);
       const bounds = (await cdp.send('Browser.getWindowForTarget')).bounds;
-      assert.deepEqual([bounds.left, bounds.top, bounds.width, bounds.height], report.launchBounds);
+      assert.notEqual(bounds.windowState, 'fullscreen', 'Initial presentation must stay windowed, including after a fullscreen shutdown');
+      // CDP may exclude invisible Windows resize borders from native window bounds.
+      const center = [bounds.left + bounds.width / 2, bounds.top + bounds.height / 2];
+      assert.ok(center[0] >= report.launchBounds[0] && center[0] < report.launchBounds[0] + report.launchBounds[2]);
+      assert.ok(center[1] >= report.launchBounds[1] && center[1] < report.launchBounds[1] + report.launchBounds[3]);
     }
+    assert.equal(await session.page.evaluate(() => !!document.fullscreenElement), false, 'Homepage must not enter DOM fullscreen');
     return session;
   };
   const quit = async (session, key) => {
@@ -102,7 +104,7 @@ const until = async (condition, message, timeout = 20000) => {
     if (process.platform === 'win32') {
       const source = await explorer('Open');
       explorerWindow = source.hwnd;
-      if (!explorerWindow) console.log('Explorer fixture unavailable: testing native cursor-display fallback, placement and fullscreen');
+      if (!explorerWindow) console.log('Explorer fixture unavailable: testing native cursor-display fallback, placement and windowed startup');
     }
     const openPresenter = async session => {
       await session.page.bringToFront();
@@ -131,9 +133,10 @@ const until = async (condition, message, timeout = 20000) => {
     const viewer = await openPresenter(first);
     await viewer.waitForLoadState();
     await first.page.waitForFunction(() => document.getElementById('presenter-status').classList.contains('connected'));
-    if (process.platform !== 'win32') {
-      await viewer.waitForFunction(() => screenX >= 1920 && !!document.fullscreenElement);
-    }
+    await viewer.waitForFunction(() => !!document.fullscreenElement);
+    if (process.platform !== 'win32') await viewer.waitForFunction(() => screenX >= 1920);
+    assert.equal(await first.page.evaluate(() => !!document.fullscreenElement), false, 'Workbench must stay windowed while the audience is fullscreen');
+    if (process.platform === 'win32') assert.notEqual((await cdp.send('Browser.getWindowForTarget')).bounds.windowState, 'fullscreen');
     await first.page.locator('#presenter-font-up').click();
     const font = await first.page.locator('#presenter-script').evaluate(e => getComputedStyle(e).getPropertyValue('--p-note-size'));
     assert.equal(first.context.pages().length, 2);
@@ -156,12 +159,20 @@ const until = async (condition, message, timeout = 20000) => {
     assert.equal(third.info.profile, first.info.profile, 'Normal relaunch should reuse presentation preferences');
     const thirdCDP = await third.context.newCDPSession(third.page);
     await thirdCDP.send('Browser.setPermission', {permission: {name: 'window-management'}, setting: 'granted', origin: new URL(third.info.url).origin});
-    await openPresenter(third);
+    const thirdViewer = await openPresenter(third);
+    await thirdViewer.waitForFunction(() => !!document.fullscreenElement);
     assert.equal(await third.page.locator('#presenter-script').evaluate(e => getComputedStyle(e).getPropertyValue('--p-note-size')), font);
+    if (process.platform === 'win32') {
+      await thirdViewer.close();
+      const windowId = (await thirdCDP.send('Browser.getWindowForTarget')).windowId;
+      await thirdCDP.send('Browser.setWindowBounds', {windowId, bounds: {windowState: 'fullscreen'}});
+      await until(async () => (await thirdCDP.send('Browser.getWindowForTarget')).bounds.windowState === 'fullscreen', 'Seed remembered fullscreen before restarting');
+      await pause(1000);
+    }
     await quit(third, '\x03');
     const fourth = await start('fourth', first.info.port);
     await quit(fourth, 'q');
-    console.log('PASS managed browser: launch display, initial fullscreen, restored-bounds override, Q/Esc/Ctrl+C, isolated concurrent browsers and persistent preferences');
+    console.log('PASS managed browser: launch display, windowed homepage/workbench, automatic audience fullscreen, restored-bounds/fullscreen override, Q/Esc/Ctrl+C, isolated concurrent browsers and persistent preferences');
   } finally {
     for (const session of sessions) {
       if (!session.closed) {
