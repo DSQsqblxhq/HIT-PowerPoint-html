@@ -23,5 +23,6 @@ try {
         }
         Start-Sleep -Milliseconds 100
     }
-    throw 'Could not select the CMD fixture in Explorer'
+    # Hosted service desktops may not expose Explorer automation at all.
+    @{ hwnd = 0; reason = 'Explorer automation is unavailable; exercise cursor-display fallback' } | ConvertTo-Json -Compress
 } finally { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($shell) }

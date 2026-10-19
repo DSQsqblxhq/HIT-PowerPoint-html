@@ -27,7 +27,7 @@ jobs:
           node-version: 20
       - name: Build single-file local launcher
         run: python3 tools/package_local.py
-      - name: Verify local launcher with native secondary screens
+      - name: Verify screen placement, fullscreen and local shutdown
         env:
           HIT_POWERSHELL_EXECUTABLE: pwsh
           HIT_VERIFY_LAUNCHER_SCREENS: '1'
