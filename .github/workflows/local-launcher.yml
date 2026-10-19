@@ -1,0 +1,31 @@
+name: Verify Local Launcher
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - HIT-HTML.html
+      - tools/local/**
+      - tools/package_local.py
+      - tests/local-launcher.cjs
+      - .github/workflows/local-launcher.yml
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        powershell: [powershell.exe, pwsh.exe]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Verify Windows PowerShell launcher
+        env:
+          HIT_POWERSHELL_EXECUTABLE: ${{ matrix.powershell }}
+        run: node tests/local-launcher.cjs
+      - name: Build offline bundle
+        run: python tools/package_local.py

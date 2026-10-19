@@ -14,6 +14,7 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
     res.end(fs.readFileSync(artifact));
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const servedURL = process.env.HIT_PRESENTATION_URL || `http://127.0.0.1:${server.address().port}/HIT-HTML.html`;
   const browser = await chromium.launch({
     ...(process.env.HIT_CHROME_EXECUTABLE ? {executablePath: process.env.HIT_CHROME_EXECUTABLE} : {}),
     args: ['--window-size=1280,900'],
@@ -41,7 +42,8 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
       const main = await context.newPage();
       const cdp = await context.newCDPSession(main);
       const target = (await cdp.send('Target.getTargetInfo')).targetInfo;
-      await cdp.send('Browser.setPermission', {permission: {name: 'window-management'}, setting: 'granted', browserContextId: target.browserContextId});
+      // Grant only the tested origin; a global grant hides file/HTTP permission differences.
+      await cdp.send('Browser.setPermission', {permission: {name: 'window-management'}, setting: 'granted', origin: mode === 'file' ? 'file:///' : new URL(servedURL).origin, browserContextId: target.browserContextId});
       const screens = (await cdp.send('Emulation.getScreenInfos')).screenInfos;
       await cdp.send('Emulation.updateScreen', {screenId: screens.find(s => s.isPrimary).id, left: 0, top: 0, width: 1920, height: 1080, label: 'Main'});
       const layout = {left: side === 'left' ? -2560 : 1920, top: side === 'left' ? -200 : 0, width: 2560, height: 1440, label: 'Secondary'};
@@ -49,7 +51,7 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
       await cdp.send(secondary ? 'Emulation.updateScreen' : 'Emulation.addScreen', {...(secondary ? {screenId: secondary.id} : {}), ...layout});
       const windowId = (await cdp.send('Browser.getWindowForTarget')).windowId;
       await cdp.send('Browser.setWindowBounds', {windowId, bounds: {left: 100, top: 100, width: 1280, height: 900}});
-      await main.goto(mode === 'file' ? pathToFileURL(artifact).href : `http://127.0.0.1:${server.address().port}/HIT-HTML.html`);
+      await main.goto(mode === 'file' ? pathToFileURL(artifact).href : servedURL);
       const popup = main.waitForEvent('popup');
       await main.keyboard.press('s');
       const audience = await popup;
@@ -94,6 +96,22 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
       await context.close();
       console.log(`PASS ${mode}/${side}: native secondary-window placement, delegated fullscreen, selection, reload and sync`);
     }
+    // A fresh file origin has no web-origin grant. Never claim automatic secondary placement.
+    const fresh = await browser.newContext({viewport: null});
+    const local = await fresh.newPage();
+    const localCDP = await fresh.newCDPSession(local);
+    const localTarget = (await localCDP.send('Target.getTargetInfo')).targetInfo;
+    await localCDP.send('Browser.setPermission', {permission: {name: 'window-management'}, setting: 'granted', origin: new URL(servedURL).origin, browserContextId: localTarget.browserContextId});
+    await local.goto(pathToFileURL(artifact).href);
+    assert.notEqual(await local.evaluate(async () => (await navigator.permissions.query({name: 'window-management'})).state), 'granted');
+    const localPopup = local.waitForEvent('popup');
+    await local.keyboard.press('s');
+    const localAudience = await localPopup;
+    await localAudience.waitForLoadState();
+    await local.waitForFunction(() => document.getElementById('presenter-notice').textContent.includes('Start-Presentation.cmd'));
+    assert.equal(await localAudience.evaluate(() => !!document.fullscreenElement), false);
+    await fresh.close();
+    console.log('PASS fresh local file: web grant is separate; failed screen access shows the local-launcher guidance without auto-fullscreen');
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();
