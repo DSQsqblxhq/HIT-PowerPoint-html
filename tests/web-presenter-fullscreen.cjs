@@ -28,6 +28,13 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
           window.__fullscreenRequests.push({left: options?.screen?.left, top: options?.screen?.top, active: navigator.userActivation.isActive});
           return request.call(this, options);
         };
+        let ignoredMoves = 0;
+        const move = window.moveTo;
+        window.__ignoreNextMoves = count => { ignoredMoves = count; };
+        window.moveTo = function(...args) {
+          if (ignoredMoves > 0) { ignoredMoves--; return; }
+          return move.apply(this, args);
+        };
         if (!window.opener && scenario === 'expired-activation') {
           const details = window.getScreenDetails;
           window.getScreenDetails = async function() {
@@ -109,10 +116,12 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
           const x = bounds.left + bounds.width / 2, y = bounds.top + bounds.height / 2;
           return x >= screen.left && x < screen.left + screen.width && y >= screen.top && y < screen.top + screen.height;
         };
-        // Exercise repeated clicks from the same endpoint as well as alternating
-        // endpoints. Check actual windows, not only requestFullscreen options.
+        // Fullscreen can retain the underlying normal window's screenX/bounds.
+        // Check the requested fullscreen target and the actual windowed workbench.
+        // Exercise repeated clicks from the same endpoint and alternating endpoints.
         const initiators = ['presenter', 'presenter', 'audience', 'audience', 'presenter', 'audience'];
         for (const [index, initiator] of initiators.entries()) {
+          await workbench.evaluate(() => window.__ignoreNextMoves(2));
           if (initiator === 'presenter') await workbench.locator('#presenter-swap').click();
           else {
             const edge = await read('({x:innerWidth/2,y:innerHeight-5})');
@@ -122,9 +131,8 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
           const audienceScreen = index % 2 ? layout : primary;
           const presenterScreen = index % 2 ? primary : layout;
           await until(async () => {
-            const audienceBounds = (await cdp.send('Browser.getWindowForTarget')).bounds;
             const presenterBounds = (await workCDP.send('Browser.getWindowForTarget')).bounds;
-            return onScreen(audienceBounds, audienceScreen) && onScreen(presenterBounds, presenterScreen) && await read('!!document.fullscreenElement');
+            return onScreen(presenterBounds, presenterScreen) && await read(`!!document.fullscreenElement && window.__fullscreenRequests.at(-1).left === ${audienceScreen.left} && window.__fullscreenRequests.at(-1).top === ${audienceScreen.top}`);
           }).catch(async error => {
             const expression = '({geometry:Ae(),current:A&&{left:A.currentScreen.left,top:A.currentScreen.top},target:z,peer:H,pinned:W,swap:J&&{id:J.id,phase:J.phase},notice:document.getElementById("presenter-notice").textContent,requests:window.__fullscreenRequests})';
             console.error('Swap diagnostics:', JSON.stringify({scenario, swap: index + 1, initiator,
@@ -139,7 +147,6 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
           // Allow restore-bounds/fullscreen events to settle before verifying that
           // neither window was subsequently returned to its previous monitor.
           await pause(400);
-          assert.ok(onScreen((await cdp.send('Browser.getWindowForTarget')).bounds, audienceScreen), `${scenario}: audience after swap ${index + 1}`);
           assert.ok(onScreen((await workCDP.send('Browser.getWindowForTarget')).bounds, presenterScreen), `${scenario}: workbench after swap ${index + 1}`);
           assert.equal(await read('document.documentElement.dataset.role'), 'audience');
           assert.equal(await read('!!document.fullscreenElement'), true);

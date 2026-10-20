@@ -6,7 +6,7 @@ const path = require('node:path');
 const html = fs.readFileSync(path.join(__dirname, '../HIT-HTML.html'), 'utf8');
 const runtime = html.match(/<script>[\s\S]*?<\/script>/g).at(-1).slice(8, -9);
 const declarations = [...runtime.matchAll(/(?:async )?function [\w$]+\(/g)];
-const functions = ['Ae', 'Xe', 'Ze', '_e', 'Qe', 'et', 'ut', 'Ve', 'ft', 'webScreenBox', 'webPlacement', 'webSwap', 'webSwapAudience', 'webSwapComplete'];
+const functions = ['Me', 'Ae', 'Xe', 'Ze', '_e', 'Qe', 'et', 'ut', 'Ve', 'ft', 'webScreenBox', 'webPlacement', 'webSwap', 'webSwapAudience', 'webSwapComplete'];
 const source = functions.map(name => {
   const index = declarations.findIndex(match => new RegExp(`function ${name}\\(`).test(match[0]));
   assert.ok(index >= 0, `Missing runtime function: ${name}`);
@@ -61,19 +61,20 @@ async function verify(side) {
       window: own, document, Date, Math, Number, Array, Promise, setTimeout, clearTimeout,
       A: {screens, currentScreen: screens[screenIndex]}, // deliberately stale after moving
       u: role, J: null, z: null, H: null, W: null, q: 'auto', R: false, U: true,
-      f: role, v: 'https://hit.test', x: null,
+      f: role, v: 'https://hit.test', x: null, o: 'test', s: 'deck', p: 'session', _: 0,
       i: () => `swap-${++id}`,
       xt(swapId, phase, initiator) { return context.J = {id: swapId, phase, initiator}; },
       bt() { context.J = null; },
       tt() {}, Je: async () => context.A, fe() {}, je() {}, ct() {}, Ce() {}, Oe() {}, at() {},
-      Me(type, data) { return {type, ...data}; },
       Ke(message) { context.notice = message; },
       Le(type, data) {
         const destination = role === 'audience' ? presenter : audience;
-        if (type === 'web-swap-begin') { if (!destination.J) destination.xt(data.swapId, 'web', role); }
-        else if (type === 'web-swap-result') destination.webSwapComplete(data).catch(error => errors.push(error));
-        else if (type === 'web-swap-done') {
-          assert.equal(destination.J?.id, data.swapId);
+        const message = context.Me(type, data);
+        if (message.sender === destination.f) return;
+        if (message.type === 'web-swap-begin') { if (!destination.J) destination.xt(message.swapId, 'web', role); }
+        else if (message.type === 'web-swap-result') destination.webSwapComplete(message).catch(error => errors.push(error));
+        else if (message.type === 'web-swap-done') {
+          assert.equal(destination.J?.id, message.swapId);
           destination.bt();
         }
       },
