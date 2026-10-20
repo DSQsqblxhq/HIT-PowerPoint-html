@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# A headless fullscreen flag does not move the native browser window. Use two
-# XRandR outputs and a window manager to verify real fullscreen placement.
+# Use two native XRandR outputs and a window manager to verify fullscreen window
+# placement independently of browser screen emulation.
 display_dir=$(mktemp -d)
 display_number=90
 while [[ -e /tmp/.X${display_number}-lock ]]; do display_number=$((display_number + 1)); done
@@ -57,5 +57,6 @@ for attempt in {1..100}; do
   if xprop -root _NET_SUPPORTING_WM_CHECK | grep -q 'window id'; then break; fi
   sleep .1
 done
+xprop -root _NET_SUPPORTING_WM_CHECK | grep -q 'window id' || { cat "$display_dir/openbox.log"; exit 1; }
 xrandr --listmonitors
 HIT_NATIVE_DISPLAYS=1 node tests/web-presenter-fullscreen.cjs
