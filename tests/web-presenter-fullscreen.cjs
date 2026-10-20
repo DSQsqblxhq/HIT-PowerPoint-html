@@ -50,9 +50,15 @@ const nativeDisplays = process.env.HIT_NATIVE_DISPLAYS === '1';
           return request.call(this, options);
         };
         let ignoredMoves = 0;
-        const move = window.moveTo;
+        const move = window.moveTo, resize = window.resizeTo;
+        window.__fullscreenNativeMutations = [];
+        window.resizeTo = function(...args) {
+          if (document.fullscreenElement) window.__fullscreenNativeMutations.push('resize');
+          return resize.apply(this, args);
+        };
         window.__ignoreNextMoves = count => { ignoredMoves = count; };
         window.moveTo = function(...args) {
+          if (document.fullscreenElement) window.__fullscreenNativeMutations.push('move');
           if (ignoredMoves > 0) { ignoredMoves--; return; }
           return move.apply(this, args);
         };
@@ -208,6 +214,7 @@ const nativeDisplays = process.env.HIT_NATIVE_DISPLAYS === '1';
       await closed;
       await until(() => read('document.documentElement.dataset.role==="deck" && !document.fullscreenElement'));
       assert.equal(context.pages().length, 1);
+      assert.deepEqual(await read('window.__fullscreenNativeMutations'), [], 'Do not resize or move the fullscreen original tab');
       console.log(`PASS HTTPS/${scenario}: one gesture requests native fullscreen on the secondary screen, windowed workbench on the source screen, sync/timer and clean exit`);
       await browser.close();
       child.kill();
