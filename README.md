@@ -6,9 +6,9 @@
 
 [在线预览](https://dsqsqblxhq.github.io/HIT-PowerPoint-html/HIT-HTML.html) · [下载 HTML](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.2/HIT-HTML.html) · [下载 Windows 双屏 CMD](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.2/HIT-HTML-local.cmd)
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-
 本项目为个人整理，非哈尔滨工业大学官方发布。
+
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
 </div>
 
