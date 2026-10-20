@@ -118,6 +118,15 @@ const nativeDisplays = process.env.HIT_NATIVE_DISPLAYS === '1';
       });
       await workbench.waitForLoadState();
       const workCDP = await context.newCDPSession(workbench);
+      if (scenario === 'expired-activation' || scenario === 'blocked-popup') {
+        // Native Chrome may leave the opener windowed after a delayed or blocked
+        // launch. Verify the advertised fullscreen recovery control as well.
+        await workbench.waitForFunction(() => document.getElementById('presenter-status').classList.contains('connected'));
+        if (!await read('!!document.fullscreenElement')) {
+          await workbench.bringToFront();
+          await workbench.locator('#presenter-fullscreen').click();
+        }
+      }
       await workbench.waitForFunction(() => document.documentElement.dataset.role === 'presenter' && document.getElementById('presenter-status').textContent.includes('全屏放映')).catch(async error => {
         const expression = '({role:u,session:p,connected:k,fullscreen:!!document.fullscreenElement,notice:document.getElementById("presenter-notice").textContent,status:document.getElementById("presenter-status").textContent,current:A&&{left:A.currentScreen.left,top:A.currentScreen.top},target:z,pinned:W,requests:window.__fullscreenRequests})';
         console.error('Connection diagnostics:', JSON.stringify({scenario, audience: await read(expression), presenter: (await workCDP.send('Runtime.evaluate', {expression, returnByValue: true})).result.value, audienceBounds: (await cdp.send('Browser.getWindowForTarget')).bounds, presenterBounds: (await workCDP.send('Browser.getWindowForTarget')).bounds}));
@@ -129,7 +138,7 @@ const nativeDisplays = process.env.HIT_NATIVE_DISPLAYS === '1';
       if (nativeDisplays) assert.equal((await cdp.send('Browser.getWindowForTarget')).bounds.windowState, 'fullscreen');
       const requests = await read('window.__fullscreenRequests');
       assert.ok(requests.length > 0);
-      assert.ok(requests.every(r => r.active && r.left === layout.left && r.top === layout.top), JSON.stringify(requests));
+      assert.ok(requests.every(r => (r.active || scenario === 'expired-activation' || scenario === 'blocked-popup') && r.left === layout.left && r.top === layout.top), JSON.stringify(requests));
       assert.equal(await workbench.locator('#presenter-timer-toggle').textContent(), '暂停');
       const home = (await workCDP.send('Browser.getWindowForTarget')).bounds;
       assert.ok(home.left + home.width / 2 >= primary.left && home.left + home.width / 2 < primary.left + primary.width, JSON.stringify(home));
@@ -215,7 +224,7 @@ const nativeDisplays = process.env.HIT_NATIVE_DISPLAYS === '1';
       await until(() => read('document.documentElement.dataset.role==="deck" && !document.fullscreenElement'));
       assert.equal(context.pages().length, 1);
       assert.deepEqual(await read('window.__fullscreenNativeMutations'), [], 'Do not resize or move the fullscreen original tab');
-      console.log(`PASS HTTPS/${scenario}: one gesture requests native fullscreen on the secondary screen, windowed workbench on the source screen, sync/timer and clean exit`);
+      console.log(`PASS HTTPS/${scenario}: ${scenario === 'left' || scenario === 'right' ? 'automatic fullscreen and six native swaps' : 'permission/popup recovery through the fullscreen control'}, separate native displays, sync/timer and clean exit`);
       await browser.close();
       child.kill();
     }
