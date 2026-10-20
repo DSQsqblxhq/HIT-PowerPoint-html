@@ -70,7 +70,8 @@ async function verify(side) {
       Ke(message) { context.notice = message; },
       Le(type, data) {
         const destination = role === 'audience' ? presenter : audience;
-        if (type === 'web-swap-result') destination.webSwapComplete(data).catch(error => errors.push(error));
+        if (type === 'web-swap-begin') { if (!destination.J) destination.xt(data.swapId, 'web', role); }
+        else if (type === 'web-swap-result') destination.webSwapComplete(data).catch(error => errors.push(error));
         else if (type === 'web-swap-done') {
           assert.equal(destination.J?.id, data.swapId);
           destination.bt();
@@ -95,6 +96,7 @@ async function verify(side) {
     assert.ok(audience.J || presenter.J, 'Swap must stay locked while native windows are moving');
     await pause(140);
     assert.ok(audience.J, 'Audience must wait for workbench placement acknowledgment');
+    assert.ok(presenter.J, 'The peer swap control must also stay locked during fullscreen movement');
     await until(() => !audience.J && !presenter.J, `Swap ${count + 1} did not finish`);
     const audienceScreen = screens[count % 2 ? 1 : 0], presenterScreen = screens[count % 2 ? 0 : 1];
     assert.ok(audience.Qe(audience._e(audienceScreen), audience.Ae()), `${side}: audience swap ${count + 1}`);
