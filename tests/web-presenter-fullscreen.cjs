@@ -201,7 +201,8 @@ const nativeDisplays = process.env.HIT_NATIVE_DISPLAYS === '1';
       await until(() => read('document.documentElement.dataset.role==="deck" && !document.fullscreenElement'));
       assert.equal(context.pages().length, 1);
       console.log(`PASS HTTPS/${scenario}: one gesture requests native fullscreen on the secondary screen, windowed workbench on the source screen, sync/timer and clean exit`);
-      await context.close();
+      await browser.close();
+      child.kill();
     }
     assert.deepEqual(errors, []);
   } finally {
