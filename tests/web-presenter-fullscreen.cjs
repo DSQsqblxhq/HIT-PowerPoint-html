@@ -1,22 +1,28 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
+const {execFileSync} = require('node:child_process');
 const {chromium} = require('playwright');
 
 const html = fs.readFileSync(path.resolve(__dirname, '../HIT-HTML.html'), 'utf8');
 const url = 'https://hit-presentation.test/HIT-HTML.html';
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+const nativeDisplays = process.env.HIT_NATIVE_DISPLAYS === '1';
 
 (async () => {
   // Full Chrome implements fullscreen companion windows; headless-shell does not.
   const browser = await chromium.launch({
     executablePath: process.env.HIT_CHROME_EXECUTABLE || chromium.executablePath(),
+    headless: !nativeDisplays,
     ignoreDefaultArgs: ['--disable-popup-blocking'],
-    args: ['--window-size=1280,900'],
+    args: ['--window-size=1280,900', ...(nativeDisplays ? ['--ozone-platform=x11'] : [])],
   });
   const errors = [];
   try {
     for (const scenario of ['left', 'right', 'expired-activation', 'blocked-popup']) {
+      const primary = {left: nativeDisplays && scenario === 'left' ? 2560 : 0, top: nativeDisplays && scenario === 'left' ? 200 : 0, width: 1920, height: 1080};
+      const layout = {left: scenario === 'left' ? (nativeDisplays ? 0 : -2560) : 1920, top: scenario === 'left' && !nativeDisplays ? -200 : 0, width: 2560, height: 1440, label: 'Secondary'};
+      if (nativeDisplays) execFileSync('xrandr', ['--output', 'DUMMY0', '--mode', '1920x1080', '--primary', '--pos', `${primary.left}x${primary.top}`, '--output', 'DUMMY1', '--mode', '2560x1440', '--pos', `${layout.left}x${layout.top}`]);
       const context = await browser.newContext({viewport: null});
       context.setDefaultTimeout(10000);
       context.on('page', page => page.on('pageerror', error => errors.push(error.stack)));
@@ -51,13 +57,14 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
       const main = await context.newPage(), cdp = await context.newCDPSession(main);
       const target = (await cdp.send('Target.getTargetInfo')).targetInfo;
       await cdp.send('Browser.setPermission', {permission: {name: 'window-management'}, setting: 'granted', origin: new URL(url).origin, browserContextId: target.browserContextId});
-      const screens = (await cdp.send('Emulation.getScreenInfos')).screenInfos;
-      await cdp.send('Emulation.updateScreen', {screenId: screens.find(s => s.isPrimary).id, left: 0, top: 0, width: 1920, height: 1080, label: 'Main'});
-      const layout = {left: scenario === 'left' ? -2560 : 1920, top: scenario === 'left' ? -200 : 0, width: 2560, height: 1440, label: 'Secondary'};
-      const secondary = screens.find(s => s.label === 'Secondary');
-      await cdp.send(secondary ? 'Emulation.updateScreen' : 'Emulation.addScreen', {...(secondary ? {screenId: secondary.id} : {}), ...layout});
+      if (!nativeDisplays) {
+        const screens = (await cdp.send('Emulation.getScreenInfos')).screenInfos;
+        await cdp.send('Emulation.updateScreen', {screenId: screens.find(s => s.isPrimary).id, ...primary, label: 'Main'});
+        const secondary = screens.find(s => s.label === 'Secondary');
+        await cdp.send(secondary ? 'Emulation.updateScreen' : 'Emulation.addScreen', {...(secondary ? {screenId: secondary.id} : {}), ...layout});
+      }
       const windowId = (await cdp.send('Browser.getWindowForTarget')).windowId;
-      await cdp.send('Browser.setWindowBounds', {windowId, bounds: {left: 100, top: 100, width: 1280, height: 900}});
+      await cdp.send('Browser.setWindowBounds', {windowId, bounds: {left: primary.left + 100, top: primary.top + 100, width: 1280, height: 900}});
       const read = async expression => {
         const result = await cdp.send('Runtime.evaluate', {expression, returnByValue: true, userGesture: false, awaitPromise: true});
         assert.equal(result.exceptionDetails, undefined);
@@ -69,6 +76,7 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
         throw new Error(`${scenario}: condition timed out; role/status: ${JSON.stringify(await read('({role:document.documentElement.dataset.role,notice:document.getElementById("presenter-notice").textContent,full:!!document.fullscreenElement})'))}`);
       };
       await main.goto(url);
+      if (nativeDisplays) assert.equal(await main.evaluate(async () => (await getScreenDetails()).screens.length), 2, 'Native desktop must expose two actual displays');
       if (scenario === 'expired-activation' || scenario === 'blocked-popup') {
         await main.keyboard.press('s');
         await until(async () => (await read('document.getElementById("presenter-notice").textContent')).includes(scenario === 'expired-activation' ? '屏幕权限已就绪' : '浏览器未完成双屏全屏放映'));
@@ -90,7 +98,7 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
       assert.equal(await workbench.locator('#presenter-timer-toggle').textContent(), '暂停');
       const workCDP = await context.newCDPSession(workbench);
       const home = (await workCDP.send('Browser.getWindowForTarget')).bounds;
-      assert.ok(home.left + home.width / 2 >= 0 && home.left + home.width / 2 < 1920, JSON.stringify(home));
+      assert.ok(home.left + home.width / 2 >= primary.left && home.left + home.width / 2 < primary.left + primary.width, JSON.stringify(home));
       assert.equal((await workCDP.send('Runtime.evaluate', {expression: '!!document.fullscreenElement', returnByValue: true, userGesture: false})).result.value, false);
       assert.equal(context.pages().length, 2);
       assert.equal(new URL(main.url()).searchParams.has('hit-session'), false);
@@ -111,7 +119,6 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
       await workbench.locator('#presenter-fullscreen').click();
       await until(() => read('!!document.fullscreenElement'));
       if (scenario === 'left' || scenario === 'right') {
-        const primary = {left: 0, top: 0, width: 1920, height: 1080};
         const onScreen = (bounds, screen) => {
           const x = bounds.left + bounds.width / 2, y = bounds.top + bounds.height / 2;
           return x >= screen.left && x < screen.left + screen.width && y >= screen.top && y < screen.top + screen.height;

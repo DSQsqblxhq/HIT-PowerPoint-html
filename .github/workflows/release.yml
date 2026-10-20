@@ -38,7 +38,8 @@ jobs:
         run: |
           npm install playwright
           npx playwright install --with-deps chromium
-          node tests/web-presenter-fullscreen.cjs
+          sudo apt-get install -y xserver-xorg-core xserver-xorg-video-dummy x11-utils x11-xserver-utils openbox
+          bash tests/native-displays.sh
           node tests/local-launcher.cjs
           node tests/launcher-browser.cjs
       - name: Upload, verify and publish v1.2
