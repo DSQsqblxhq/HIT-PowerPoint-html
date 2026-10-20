@@ -54,7 +54,7 @@ xrandr --output DUMMY0 --mode HIT-1920x1080 --primary --pos 0x0 --output DUMMY1 
 openbox --sm-disable > "$display_dir/openbox.log" 2>&1 &
 wm_pid=$!
 for attempt in {1..100}; do
-  if xprop -root _NET_SUPPORTING_WM_CHECK | rg -q 'window id'; then break; fi
+  if xprop -root _NET_SUPPORTING_WM_CHECK | grep -q 'window id'; then break; fi
   sleep .1
 done
 xrandr --listmonitors

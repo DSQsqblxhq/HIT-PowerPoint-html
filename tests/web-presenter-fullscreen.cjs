@@ -92,6 +92,8 @@ const nativeDisplays = process.env.HIT_NATIVE_DISPLAYS === '1';
       await workbench.waitForLoadState();
       await workbench.waitForFunction(() => document.documentElement.dataset.role === 'presenter' && document.getElementById('presenter-status').textContent.includes('全屏放映'));
       await until(() => read('document.documentElement.dataset.role==="audience" && !!document.fullscreenElement'));
+      console.log('Initial fullscreen:', JSON.stringify({scenario, bounds: (await cdp.send('Browser.getWindowForTarget')).bounds, current: await read('A&&{left:A.currentScreen.left,top:A.currentScreen.top}') }));
+      await until(() => read(`A.currentScreen.left === ${layout.left} && A.currentScreen.top === ${layout.top}`));
       const requests = await read('window.__fullscreenRequests');
       assert.ok(requests.length > 0);
       assert.ok(requests.every(r => r.active && r.left === layout.left && r.top === layout.top), JSON.stringify(requests));
@@ -106,18 +108,6 @@ const nativeDisplays = process.env.HIT_NATIVE_DISPLAYS === '1';
       await workbench.locator('#presenter-next').click();
       await until(() => read('document.getElementById("counter").textContent==="2 / 8" && !!document.fullscreenElement'));
       await workbench.locator('#presenter-timer-toggle').click();
-      // The audience is the original tab: fullscreen must not depend on moveTo(),
-      // which browsers may disallow for a normal tab, especially after a reload.
-      await read('document.exitFullscreen()');
-      await workbench.waitForFunction(() => !document.getElementById('presenter-status').textContent.includes('全屏放映'));
-      await workbench.locator('#presenter-fullscreen').click();
-      await until(() => read('!!document.fullscreenElement'));
-      await workbench.reload();
-      await workbench.waitForFunction(() => document.getElementById('presenter-status').textContent.includes('全屏放映'));
-      await read('document.exitFullscreen()');
-      await workbench.waitForFunction(() => !document.getElementById('presenter-status').textContent.includes('全屏放映'));
-      await workbench.locator('#presenter-fullscreen').click();
-      await until(() => read('!!document.fullscreenElement'));
       if (scenario === 'left' || scenario === 'right') {
         const onScreen = (bounds, screen) => {
           const x = bounds.left + bounds.width / 2, y = bounds.top + bounds.height / 2;
@@ -167,6 +157,18 @@ const nativeDisplays = process.env.HIT_NATIVE_DISPLAYS === '1';
           assert.equal(context.pages().length, 2);
         }
       }
+      // The audience is the original tab: fullscreen must not depend on moveTo(),
+      // which browsers may disallow for a normal tab, especially after a reload.
+      await read('document.exitFullscreen()');
+      await workbench.waitForFunction(() => !document.getElementById('presenter-status').textContent.includes('全屏放映'));
+      await workbench.locator('#presenter-fullscreen').click();
+      await until(() => read('!!document.fullscreenElement'));
+      await workbench.reload();
+      await workbench.waitForFunction(() => document.getElementById('presenter-status').textContent.includes('全屏放映'));
+      await read('document.exitFullscreen()');
+      await workbench.waitForFunction(() => !document.getElementById('presenter-status').textContent.includes('全屏放映'));
+      await workbench.locator('#presenter-fullscreen').click();
+      await until(() => read('!!document.fullscreenElement'));
       const closed = workbench.waitForEvent('close');
       await workbench.locator('#presenter-exit').click();
       await closed;
