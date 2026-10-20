@@ -6,7 +6,7 @@ const path = require('node:path');
 const html = fs.readFileSync(path.join(__dirname, '../HIT-HTML.html'), 'utf8');
 const runtime = html.match(/<script>[\s\S]*?<\/script>/g).at(-1).slice(8, -9);
 const declarations = [...runtime.matchAll(/(?:async )?function [\w$]+\(/g)];
-const functions = ['Me', 'Ae', 'Xe', 'Ze', '_e', 'Qe', 'et', 'ut', 'Ve', 'ft', 'webScreenBox', 'webPlacement', 'webRestore', 'webSwap', 'webSwapAudience', 'webSwapComplete'];
+const functions = ['Me', 'Ae', 'Xe', 'Ze', '_e', 'Qe', 'et', 'ut', 'Ve', 'webScreenBox', 'webScreenMatches', 'webPlacement', 'webSwap', 'webSwapAudience', 'webSwapComplete'];
 const source = functions.map(name => {
   const index = declarations.findIndex(match => new RegExp(`function ${name}\\(`).test(match[0]));
   assert.ok(index >= 0, `Missing runtime function: ${name}`);
@@ -19,15 +19,17 @@ const until = async (check, message) => {
   throw new Error(message);
 };
 
-async function verify(side) {
+async function verify(side, ignoreSecondTarget = false) {
   const screens = [
     {availLeft: 0, availTop: 0, availWidth: 1920, availHeight: 1040, label: 'Main'},
     {availLeft: side === 'left' ? -2560 : 1920, availTop: -200, availWidth: 2560, availHeight: 1400, label: 'Secondary'},
   ];
-  const errors = [], requests = [], exits = [];
+  const errors = [], requests = [], exits = [], overlaps = [];
   let id = 0, audience, presenter;
   function create(role, screenIndex) {
-    let geometry = {x: screens[screenIndex].availLeft + 50, y: screens[screenIndex].availTop + 50, width: 1000, height: 700};
+    // A fullscreen tab can keep reporting its underlying normal-window bounds.
+    let geometry = {x: role === 'audience' ? 100 : screens[screenIndex].availLeft + 50, y: 50, width: 1000, height: 700};
+    let currentScreen = screens[screenIndex];
     let ignoredMoves = 2, movePending = false;
     const document = {fullscreenElement: role === 'audience' ? {} : null};
     const own = {
@@ -36,8 +38,15 @@ async function verify(side) {
       resizeTo(width, height) { geometry.width = width; geometry.height = height; },
       moveTo(x, y) {
         if (ignoredMoves-- > 0 || movePending) return;
+        if (role === 'presenter') {
+          const destination = screens.find(screen => x + geometry.width / 2 >= screen.availLeft && x + geometry.width / 2 < screen.availLeft + screen.availWidth);
+          if (destination === audience.A.currentScreen) overlaps.push({x, y});
+        }
         movePending = true;
-        setTimeout(() => { geometry.x = x; geometry.y = y; movePending = false; }, 100);
+        setTimeout(() => {
+          geometry.x = x; geometry.y = y; movePending = false;
+          currentScreen = screens.find(screen => x + geometry.width / 2 >= screen.availLeft && x + geometry.width / 2 < screen.availLeft + screen.availWidth) || currentScreen;
+        }, 100);
       },
       focus() {},
     };
@@ -50,16 +59,16 @@ async function verify(side) {
     document.documentElement = {requestFullscreen: async options => {
       const screen = options?.screen;
       assert.ok(screen, 'Every cross-screen transition must retain an explicit target');
-      requests.push(screen.availLeft);
-      document.fullscreenElement = {};
-      // Resolve before native position events have reached the renderer.
-      setTimeout(() => {
-        geometry = {x: screen.availLeft, y: screen.availTop, width: screen.availWidth, height: screen.availHeight};
-      }, 100);
+      requests.push({left: screen.availLeft, wasFullscreen: !!document.fullscreenElement});
+      document.fullscreenElement = document.documentElement;
+      // Resolving requestFullscreen does not prove that the native screen changed.
+      // A rejected placement may even leave the old fullscreen display in use.
+      if (!(ignoreSecondTarget && requests.length === 2)) setTimeout(() => { currentScreen = screen; }, 650);
     }};
+    document.fullscreenElement = role === 'audience' ? document.documentElement : null;
     const context = vm.createContext({
       window: own, document, Date, Math, Number, Array, Promise, setTimeout, clearTimeout,
-      A: {screens, currentScreen: screens[screenIndex]}, // deliberately stale after moving
+      A: {screens, get currentScreen() { return currentScreen; }},
       u: role, J: null, z: null, H: null, W: null, q: 'auto', R: false, U: true,
       f: role, v: 'https://hit.test', x: null, o: 'test', s: 'deck', p: 'session', _: 0,
       i: () => `swap-${++id}`,
@@ -91,24 +100,30 @@ async function verify(side) {
   Object.defineProperties(presenter.x, Object.fromEntries(['screenX', 'screenY', 'outerWidth', 'outerHeight'].map(key => [key, {get: () => audience.window[key]}])));
   audience.x = presenter.window;
 
+  let successfulSwaps = 0;
   for (let count = 0; count < 6; count++) {
     const endpoint = [presenter, presenter, audience, audience, presenter, audience][count];
     endpoint.webSwap();
     assert.ok(audience.J || presenter.J, 'Swap must stay locked while native windows are moving');
-    await pause(140);
+    await pause(250);
     assert.ok(audience.J, 'Audience must wait for workbench placement acknowledgment');
     assert.ok(presenter.J, 'The peer swap control must also stay locked during fullscreen movement');
     await until(() => !audience.J && !presenter.J, `Swap ${count + 1} did not finish`);
-    const audienceScreen = screens[count % 2 ? 1 : 0], presenterScreen = screens[count % 2 ? 0 : 1];
-    assert.ok(audience.Qe(audience._e(audienceScreen), audience.Ae()), `${side}: audience swap ${count + 1}`);
+    if (!(ignoreSecondTarget && count === 1)) successfulSwaps++;
+    const audienceScreen = screens[successfulSwaps % 2 ? 0 : 1], presenterScreen = screens[successfulSwaps % 2 ? 1 : 0];
+    assert.equal(audience.A.currentScreen, audienceScreen, `${side}: actual audience screen after swap ${count + 1}`);
+    assert.equal(presenter.A.currentScreen, presenterScreen, `${side}: actual presenter screen after swap ${count + 1}: ${JSON.stringify({geometry: presenter.Ae(), notice: presenter.notice, errors: errors.map(String)})}`);
     assert.ok(presenter.Qe(presenter._e(presenterScreen), presenter.Ae()), `${side}: presenter swap ${count + 1}`);
+    if (ignoreSecondTarget && count === 1) assert.match(presenter.notice, /换屏全屏未完成/);
     assert.ok(audience.document.fullscreenElement);
     presenter.H = audience.Ae();
   }
-  assert.equal(exits.length, 6, 'Finish each fullscreen teardown before requesting the captured target');
+  assert.equal(exits.length, 0, 'Retarget fullscreen without triggering native restore-bounds transitions');
+  assert.deepEqual(overlaps, [], 'Do not move the workbench onto the audience screen before fullscreen has actually moved');
   assert.equal(requests.length, 6);
+  assert.ok(requests.every(request => request.wasFullscreen), 'Each swap retargets the existing fullscreen element');
   assert.deepEqual(errors, []);
-  console.log(`PASS ${side}: six swaps, stale screen metadata, delayed fullscreen bounds and ignored initial window moves`);
+  console.log(`PASS ${side}${ignoreSecondTarget ? '/ignored-target' : ''}: six swaps, retained normal bounds, delayed actual screens, ignored moves and separate displays`);
 }
 
-(async () => { await verify('left'); await verify('right'); })().catch(error => {console.error(error); process.exitCode = 1;});
+(async () => { await verify('left'); await verify('right'); await verify('left', true); })().catch(error => {console.error(error); process.exitCode = 1;});
