@@ -112,7 +112,11 @@ const nativeDisplays = process.env.HIT_NATIVE_DISPLAYS === '1';
       });
       await workbench.waitForLoadState();
       const workCDP = await context.newCDPSession(workbench);
-      await workbench.waitForFunction(() => document.documentElement.dataset.role === 'presenter' && document.getElementById('presenter-status').textContent.includes('全屏放映'));
+      await workbench.waitForFunction(() => document.documentElement.dataset.role === 'presenter' && document.getElementById('presenter-status').textContent.includes('全屏放映')).catch(async error => {
+        const expression = '({role:u,session:p,connected:k,fullscreen:!!document.fullscreenElement,notice:document.getElementById("presenter-notice").textContent,status:document.getElementById("presenter-status").textContent,current:A&&{left:A.currentScreen.left,top:A.currentScreen.top},target:z,pinned:W,requests:window.__fullscreenRequests})';
+        console.error('Connection diagnostics:', JSON.stringify({scenario, audience: await read(expression), presenter: (await workCDP.send('Runtime.evaluate', {expression, returnByValue: true})).result.value, audienceBounds: (await cdp.send('Browser.getWindowForTarget')).bounds, presenterBounds: (await workCDP.send('Browser.getWindowForTarget')).bounds}));
+        throw error;
+      });
       await until(() => read('document.documentElement.dataset.role==="audience" && !!document.fullscreenElement'));
       console.log('Initial fullscreen:', JSON.stringify({scenario, bounds: (await cdp.send('Browser.getWindowForTarget')).bounds, current: await read('A&&{left:A.currentScreen.left,top:A.currentScreen.top}') }));
       await until(() => read(`A.currentScreen.left === ${layout.left} && A.currentScreen.top === ${layout.top}`));
