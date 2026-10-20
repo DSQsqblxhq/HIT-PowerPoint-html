@@ -55,6 +55,9 @@ const nativeDisplays = process.env.HIT_NATIVE_DISPLAYS === '1';
         }
       }, {scenario});
       const main = await context.newPage(), cdp = await context.newCDPSession(main);
+      // Playwright's focus emulation enables fullscreen only within the tab.
+      // Disable it so the test exercises real browser-window fullscreen.
+      await cdp.send('Emulation.setFocusEmulationEnabled', {enabled: false});
       const target = (await cdp.send('Target.getTargetInfo')).targetInfo;
       await cdp.send('Browser.setPermission', {permission: {name: 'window-management'}, setting: 'granted', origin: new URL(url).origin, browserContextId: target.browserContextId});
       if (!nativeDisplays) {
@@ -90,6 +93,8 @@ const nativeDisplays = process.env.HIT_NATIVE_DISPLAYS === '1';
       else await main.locator('#presenter-open').click();
       const workbench = await pending;
       await workbench.waitForLoadState();
+      const workCDP = await context.newCDPSession(workbench);
+      await workCDP.send('Emulation.setFocusEmulationEnabled', {enabled: false});
       await workbench.waitForFunction(() => document.documentElement.dataset.role === 'presenter' && document.getElementById('presenter-status').textContent.includes('全屏放映'));
       await until(() => read('document.documentElement.dataset.role==="audience" && !!document.fullscreenElement'));
       console.log('Initial fullscreen:', JSON.stringify({scenario, bounds: (await cdp.send('Browser.getWindowForTarget')).bounds, current: await read('A&&{left:A.currentScreen.left,top:A.currentScreen.top}') }));
@@ -98,7 +103,6 @@ const nativeDisplays = process.env.HIT_NATIVE_DISPLAYS === '1';
       assert.ok(requests.length > 0);
       assert.ok(requests.every(r => r.active && r.left === layout.left && r.top === layout.top), JSON.stringify(requests));
       assert.equal(await workbench.locator('#presenter-timer-toggle').textContent(), '暂停');
-      const workCDP = await context.newCDPSession(workbench);
       const home = (await workCDP.send('Browser.getWindowForTarget')).bounds;
       assert.ok(home.left + home.width / 2 >= primary.left && home.left + home.width / 2 < primary.left + primary.width, JSON.stringify(home));
       assert.equal((await workCDP.send('Runtime.evaluate', {expression: '!!document.fullscreenElement', returnByValue: true, userGesture: false})).result.value, false);
@@ -120,8 +124,12 @@ const nativeDisplays = process.env.HIT_NATIVE_DISPLAYS === '1';
         const initiators = ['presenter', 'presenter', 'audience', 'audience', 'presenter', 'audience'];
         for (const [index, initiator] of initiators.entries()) {
           await workbench.evaluate(() => window.__ignoreNextMoves(2));
-          if (initiator === 'presenter') await workbench.locator('#presenter-swap').click();
+          if (initiator === 'presenter') {
+            await workbench.bringToFront();
+            await workbench.locator('#presenter-swap').click();
+          }
           else {
+            await main.bringToFront();
             const edge = await read('({x:innerWidth/2,y:innerHeight-5})');
             await main.mouse.move(edge.x, edge.y);
             await main.locator('#audience-swap').click();
