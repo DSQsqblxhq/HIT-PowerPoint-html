@@ -94,17 +94,22 @@ const nativeDisplays = process.env.HIT_NATIVE_DISPLAYS === '1';
       await main.goto(url);
       if (nativeDisplays) assert.equal(await main.evaluate(async () => (await getScreenDetails()).screens.length), 2, 'Native desktop must expose two actual displays');
       if (scenario === 'expired-activation' || scenario === 'blocked-popup') {
-        await main.keyboard.press('s');
+        await main.bringToFront();
+        await main.locator('#presenter-start').click();
         await until(async () => (await read('document.getElementById("presenter-notice").textContent')).includes(scenario === 'expired-activation' ? '屏幕权限已就绪' : '浏览器未完成双屏全屏放映'));
         assert.equal(context.pages().length, 1);
         assert.equal(await read('document.documentElement.dataset.role'), 'presenter');
         assert.equal(await read('!!document.fullscreenElement'), false);
         if (scenario === 'blocked-popup') await read('window.open=window.__open;true');
       }
-      const pending = main.waitForEvent('popup');
-      if (scenario === 'left' || scenario === 'right') await main.keyboard.press('s');
+      const pending = context.waitForEvent('page');
+      await main.bringToFront();
+      if (scenario === 'left' || scenario === 'right') await main.locator('#presenter-start').click();
       else await main.locator('#presenter-open').click();
-      const workbench = await pending;
+      const workbench = await pending.catch(async error => {
+        console.error('Launch diagnostics:', JSON.stringify({scenario, pages: context.pages().map(page => page.url()), bounds: (await cdp.send('Browser.getWindowForTarget')).bounds, state: await read('({role:u,notice:document.getElementById("presenter-notice").textContent,fullscreen:!!document.fullscreenElement,focused:document.hasFocus(),requests:window.__fullscreenRequests,current:A&&{left:A.currentScreen.left,top:A.currentScreen.top}})')}));
+        throw error;
+      });
       await workbench.waitForLoadState();
       const workCDP = await context.newCDPSession(workbench);
       await workbench.waitForFunction(() => document.documentElement.dataset.role === 'presenter' && document.getElementById('presenter-status').textContent.includes('全屏放映'));
