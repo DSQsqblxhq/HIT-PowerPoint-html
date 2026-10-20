@@ -125,6 +125,15 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
             const audienceBounds = (await cdp.send('Browser.getWindowForTarget')).bounds;
             const presenterBounds = (await workCDP.send('Browser.getWindowForTarget')).bounds;
             return onScreen(audienceBounds, audienceScreen) && onScreen(presenterBounds, presenterScreen) && await read('!!document.fullscreenElement');
+          }).catch(async error => {
+            const expression = '({geometry:Ae(),current:A&&{left:A.currentScreen.left,top:A.currentScreen.top},target:z,peer:H,pinned:W,swap:J&&{id:J.id,phase:J.phase},notice:document.getElementById("presenter-notice").textContent,requests:window.__fullscreenRequests})';
+            console.error('Swap diagnostics:', JSON.stringify({scenario, swap: index + 1, initiator,
+              audienceBounds: (await cdp.send('Browser.getWindowForTarget')).bounds,
+              presenterBounds: (await workCDP.send('Browser.getWindowForTarget')).bounds,
+              audience: await read(expression),
+              presenter: (await workCDP.send('Runtime.evaluate', {expression, returnByValue: true, userGesture: false})).result.value,
+            }));
+            throw error;
           });
           await workbench.waitForFunction(() => !document.getElementById('presenter-swap').disabled);
           // Allow restore-bounds/fullscreen events to settle before verifying that

@@ -33,11 +33,11 @@ jobs:
           npm install playwright
           npx playwright install chromium
 
-      - name: Verify presenter placement on secondary screens
-        run: node tests/presenter-multiscreen.cjs
-
       - name: Verify HTTPS automatic audience fullscreen
         run: node tests/web-presenter-fullscreen.cjs
+
+      - name: Verify presenter placement on secondary screens
+        run: node tests/presenter-multiscreen.cjs
 
       - name: Take screenshots
         run: |
