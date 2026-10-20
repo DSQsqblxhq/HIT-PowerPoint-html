@@ -6,9 +6,12 @@
 
 [在线预览](https://dsqsqblxhq.github.io/HIT-PowerPoint-html/HIT-HTML.html) · [下载 HTML](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.2/HIT-HTML.html) · [下载 Windows 双屏 CMD](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.2/HIT-HTML-local.cmd)
 
-本项目为个人整理，非哈尔滨工业大学官方发布。
+[![GitHub Release](https://img.shields.io/github/v/release/DSQsqblxhq/HIT-PowerPoint-html)](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases)
+[![License](https://img.shields.io/github/license/DSQsqblxhq/HIT-PowerPoint-html)](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/blob/main/LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/pulls)
+[![GitHub Stars](https://img.shields.io/github/stars/DSQsqblxhq/HIT-PowerPoint-html?style=social)](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/stargazers)
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
+本项目为个人整理，非哈尔滨工业大学官方发布。
 
 </div>
 
