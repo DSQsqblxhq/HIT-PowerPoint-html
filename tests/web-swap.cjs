@@ -24,7 +24,7 @@ async function verify(side, ignoreSecondTarget = false) {
     {availLeft: 0, availTop: 0, availWidth: 1920, availHeight: 1040, label: 'Main'},
     {availLeft: side === 'left' ? -2560 : 1920, availTop: -200, availWidth: 2560, availHeight: 1400, label: 'Secondary'},
   ];
-  const errors = [], requests = [], exits = [], overlaps = [];
+  const errors = [], requests = [], exits = [], focusedOverlaps = [];
   let id = 0, audience, presenter;
   function create(role, screenIndex) {
     // A fullscreen tab can keep reporting its underlying normal-window bounds.
@@ -38,17 +38,14 @@ async function verify(side, ignoreSecondTarget = false) {
       resizeTo(width, height) { geometry.width = width; geometry.height = height; },
       moveTo(x, y) {
         if (ignoredMoves-- > 0 || movePending) return;
-        if (role === 'presenter') {
-          const destination = screens.find(screen => x + geometry.width / 2 >= screen.availLeft && x + geometry.width / 2 < screen.availLeft + screen.availWidth);
-          if (destination === audience.A.currentScreen) overlaps.push({x, y});
-        }
         movePending = true;
         setTimeout(() => {
           geometry.x = x; geometry.y = y; movePending = false;
           currentScreen = screens.find(screen => x + geometry.width / 2 >= screen.availLeft && x + geometry.width / 2 < screen.availLeft + screen.availWidth) || currentScreen;
         }, 100);
       },
-      focus() {},
+      focus() { if (role === 'presenter' && currentScreen === audience.A.currentScreen) focusedOverlaps.push(currentScreen.availLeft); },
+      getScreenDetails: async () => context.A,
     };
     document.exitFullscreen = async () => {
       exits.push(role);
@@ -59,6 +56,7 @@ async function verify(side, ignoreSecondTarget = false) {
     document.documentElement = {requestFullscreen: async options => {
       const screen = options?.screen;
       assert.ok(screen, 'Every cross-screen transition must retain an explicit target');
+      assert.notEqual(presenter.A.currentScreen, screen, 'Move the workbench away before requesting fullscreen on its previous display');
       requests.push({left: screen.availLeft, wasFullscreen: !!document.fullscreenElement});
       document.fullscreenElement = document.documentElement;
       // Resolving requestFullscreen does not prove that the native screen changed.
@@ -119,7 +117,7 @@ async function verify(side, ignoreSecondTarget = false) {
     presenter.H = audience.Ae();
   }
   assert.equal(exits.length, 0, 'Retarget fullscreen without triggering native restore-bounds transitions');
-  assert.deepEqual(overlaps, [], 'Do not move the workbench onto the audience screen before fullscreen has actually moved');
+  assert.deepEqual(focusedOverlaps, [], 'Focus the workbench only after the windows are on separate screens');
   assert.equal(requests.length, 6);
   assert.ok(requests.every(request => request.wasFullscreen), 'Each swap retargets the existing fullscreen element');
   assert.deepEqual(errors, []);

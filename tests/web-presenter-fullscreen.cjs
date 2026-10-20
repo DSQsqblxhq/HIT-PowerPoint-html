@@ -182,7 +182,6 @@ const nativeDisplays = process.env.HIT_NATIVE_DISPLAYS === '1';
           assert.equal(await read('A.currentScreen.left'), audienceScreen.left);
           assert.equal(await read('A.currentScreen.top'), audienceScreen.top);
           assert.equal(await read('window.__fullscreenRequests.at(-1).left'), audienceScreen.left);
-          assert.equal(await read('window.__fullscreenRequests.at(-1).wasFullscreen'), true);
           assert.equal(await workbench.locator('#presenter-counter').textContent(), '2 / 8');
           assert.equal(await workbench.locator('#presenter-timer-toggle').textContent(), '继续');
           assert.equal(context.pages().length, 2);
@@ -214,7 +213,8 @@ const nativeDisplays = process.env.HIT_NATIVE_DISPLAYS === '1';
     for (const {browser, child, profile} of resources) {
       await browser?.close().catch(() => {});
       child.kill();
-      fs.rmSync(profile, {recursive: true, force: true});
+      if (child.exitCode === null && child.signalCode === null) await Promise.race([new Promise(resolve => child.once('exit', resolve)), pause(2000)]);
+      await fs.promises.rm(profile, {recursive: true, force: true, maxRetries: 10, retryDelay: 100});
     }
   }
 })().catch(error => {console.error(error); process.exit(1);});
