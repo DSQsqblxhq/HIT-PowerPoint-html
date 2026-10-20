@@ -22,7 +22,7 @@ const nativeDisplays = process.env.HIT_NATIVE_DISPLAYS === '1';
     for (const scenario of ['left', 'right', 'expired-activation', 'blocked-popup']) {
       const primary = {left: nativeDisplays && scenario === 'left' ? 2560 : 0, top: nativeDisplays && scenario === 'left' ? 200 : 0, width: 1920, height: 1080};
       const layout = {left: scenario === 'left' ? (nativeDisplays ? 0 : -2560) : 1920, top: scenario === 'left' && !nativeDisplays ? -200 : 0, width: 2560, height: 1440, label: 'Secondary'};
-      if (nativeDisplays) execFileSync('xrandr', ['--output', 'DUMMY0', '--mode', '1920x1080', '--primary', '--pos', `${primary.left}x${primary.top}`, '--output', 'DUMMY1', '--mode', '2560x1440', '--pos', `${layout.left}x${layout.top}`]);
+      if (nativeDisplays) execFileSync('xrandr', ['--output', 'DUMMY0', '--mode', 'HIT-1920x1080', '--primary', '--pos', `${primary.left}x${primary.top}`, '--output', 'DUMMY1', '--mode', 'HIT-2560x1440', '--pos', `${layout.left}x${layout.top}`]);
       const context = await browser.newContext({viewport: null});
       context.setDefaultTimeout(10000);
       context.on('page', page => page.on('pageerror', error => errors.push(error.stack)));

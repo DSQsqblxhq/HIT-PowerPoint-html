@@ -4,7 +4,9 @@ set -euo pipefail
 # A headless fullscreen flag does not move the native browser window. Use two
 # XRandR outputs and a window manager to verify real fullscreen placement.
 display_dir=$(mktemp -d)
-export DISPLAY=:99
+display_number=90
+while [[ -e /tmp/.X${display_number}-lock ]]; do display_number=$((display_number + 1)); done
+export DISPLAY=:$display_number
 cleanup() {
   kill "${wm_pid:-}" 2>/dev/null || true
   sudo kill "${x_pid:-}" 2>/dev/null || true
@@ -43,8 +45,12 @@ for attempt in {1..100}; do
   sleep .1
 done
 xdpyinfo >/dev/null
-xrandr --addmode DUMMY1 2560x1440
-xrandr --output DUMMY0 --mode 1920x1080 --primary --pos 0x0 --output DUMMY1 --mode 2560x1440 --pos 1920x0
+xrandr --query
+xrandr --newmode HIT-1920x1080 148.50 1920 2008 2052 2200 1080 1084 1089 1125 +HSync +VSync
+xrandr --newmode HIT-2560x1440 241.50 2560 2608 2640 2720 1440 1443 1448 1481 +HSync -VSync
+xrandr --addmode DUMMY0 HIT-1920x1080
+xrandr --addmode DUMMY1 HIT-2560x1440
+xrandr --output DUMMY0 --mode HIT-1920x1080 --primary --pos 0x0 --output DUMMY1 --mode HIT-2560x1440 --pos 1920x0
 openbox --sm-disable > "$display_dir/openbox.log" 2>&1 &
 wm_pid=$!
 for attempt in {1..100}; do
