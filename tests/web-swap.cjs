@@ -6,7 +6,7 @@ const path = require('node:path');
 const html = fs.readFileSync(path.join(__dirname, '../HIT-HTML.html'), 'utf8');
 const runtime = html.match(/<script>[\s\S]*?<\/script>/g).at(-1).slice(8, -9);
 const declarations = [...runtime.matchAll(/(?:async )?function [\w$]+\(/g)];
-const functions = ['Me', 'Ae', 'Xe', 'Ze', '_e', 'Qe', 'et', 'ut', 'Ve', 'ft', 'webScreenBox', 'webPlacement', 'webSwap', 'webSwapAudience', 'webSwapComplete'];
+const functions = ['Me', 'Ae', 'Xe', 'Ze', '_e', 'Qe', 'et', 'ut', 'Ve', 'ft', 'webScreenBox', 'webPlacement', 'webRestore', 'webSwap', 'webSwapAudience', 'webSwapComplete'];
 const source = functions.map(name => {
   const index = declarations.findIndex(match => new RegExp(`function ${name}\\(`).test(match[0]));
   assert.ok(index >= 0, `Missing runtime function: ${name}`);
@@ -105,7 +105,7 @@ async function verify(side) {
     assert.ok(audience.document.fullscreenElement);
     presenter.H = audience.Ae();
   }
-  assert.equal(exits.length, 0, 'Retarget fullscreen without racing restored browser bounds');
+  assert.equal(exits.length, 6, 'Finish each fullscreen teardown before requesting the captured target');
   assert.equal(requests.length, 6);
   assert.deepEqual(errors, []);
   console.log(`PASS ${side}: six swaps, stale screen metadata, delayed fullscreen bounds and ignored initial window moves`);
