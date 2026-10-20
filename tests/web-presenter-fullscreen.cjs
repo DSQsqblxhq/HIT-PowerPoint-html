@@ -28,6 +28,13 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
           window.__fullscreenRequests.push({left: options?.screen?.left, top: options?.screen?.top, active: navigator.userActivation.isActive});
           return request.call(this, options);
         };
+        let ignoredMoves = 0;
+        const move = window.moveTo;
+        window.__ignoreNextMoves = count => { ignoredMoves = count; };
+        window.moveTo = function(...args) {
+          if (ignoredMoves > 0) { ignoredMoves--; return; }
+          return move.apply(this, args);
+        };
         if (!window.opener && scenario === 'expired-activation') {
           const details = window.getScreenDetails;
           window.getScreenDetails = async function() {
@@ -103,26 +110,51 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
       await workbench.waitForFunction(() => !document.getElementById('presenter-status').textContent.includes('全屏放映'));
       await workbench.locator('#presenter-fullscreen').click();
       await until(() => read('!!document.fullscreenElement'));
-      if (scenario === 'left') {
-        await workbench.locator('#presenter-swap').click();
-        await until(async () => {
-          const box = (await workCDP.send('Browser.getWindowForTarget')).bounds;
-          return box.left + box.width / 2 >= layout.left && box.left + box.width / 2 < layout.left + layout.width;
-        });
-        assert.equal(await read('document.documentElement.dataset.role'), 'audience');
-        assert.equal(await read('window.__fullscreenRequests.at(-1).left'), 0);
-        assert.equal(await workbench.locator('#presenter-counter').textContent(), '2 / 8');
-        assert.equal(await workbench.locator('#presenter-timer-toggle').textContent(), '继续');
-        const edge = await read('({x:innerWidth/2,y:innerHeight-5})');
-        await main.mouse.move(edge.x, edge.y);
-        await main.locator('#audience-swap').click();
-        await until(async () => {
-          const box = (await workCDP.send('Browser.getWindowForTarget')).bounds;
-          return box.left + box.width / 2 >= 0 && box.left + box.width / 2 < 1920;
-        });
-        assert.equal(await read('window.__fullscreenRequests.at(-1).left'), layout.left);
-        assert.equal(await read('!!document.fullscreenElement'), true);
-        assert.equal(context.pages().length, 2);
+      if (scenario === 'left' || scenario === 'right') {
+        const primary = {left: 0, top: 0, width: 1920, height: 1080};
+        const onScreen = (bounds, screen) => {
+          const x = bounds.left + bounds.width / 2, y = bounds.top + bounds.height / 2;
+          return x >= screen.left && x < screen.left + screen.width && y >= screen.top && y < screen.top + screen.height;
+        };
+        // Fullscreen can retain the underlying normal window's screenX/bounds.
+        // Check the requested fullscreen target and the actual windowed workbench.
+        // Exercise repeated clicks from the same endpoint and alternating endpoints.
+        const initiators = ['presenter', 'presenter', 'audience', 'audience', 'presenter', 'audience'];
+        for (const [index, initiator] of initiators.entries()) {
+          await workbench.evaluate(() => window.__ignoreNextMoves(2));
+          if (initiator === 'presenter') await workbench.locator('#presenter-swap').click();
+          else {
+            const edge = await read('({x:innerWidth/2,y:innerHeight-5})');
+            await main.mouse.move(edge.x, edge.y);
+            await main.locator('#audience-swap').click();
+          }
+          const audienceScreen = index % 2 ? layout : primary;
+          const presenterScreen = index % 2 ? primary : layout;
+          await until(async () => {
+            const presenterBounds = (await workCDP.send('Browser.getWindowForTarget')).bounds;
+            return onScreen(presenterBounds, presenterScreen) && await read(`!!document.fullscreenElement && window.__fullscreenRequests.at(-1).left === ${audienceScreen.left} && window.__fullscreenRequests.at(-1).top === ${audienceScreen.top}`);
+          }).catch(async error => {
+            const expression = '({geometry:Ae(),current:A&&{left:A.currentScreen.left,top:A.currentScreen.top},target:z,peer:H,pinned:W,swap:J&&{id:J.id,phase:J.phase},notice:document.getElementById("presenter-notice").textContent,requests:window.__fullscreenRequests})';
+            console.error('Swap diagnostics:', JSON.stringify({scenario, swap: index + 1, initiator,
+              audienceBounds: (await cdp.send('Browser.getWindowForTarget')).bounds,
+              presenterBounds: (await workCDP.send('Browser.getWindowForTarget')).bounds,
+              audience: await read(expression),
+              presenter: (await workCDP.send('Runtime.evaluate', {expression, returnByValue: true, userGesture: false})).result.value,
+            }));
+            throw error;
+          });
+          await workbench.waitForFunction(() => !document.getElementById('presenter-swap').disabled);
+          // Allow restore-bounds/fullscreen events to settle before verifying that
+          // neither window was subsequently returned to its previous monitor.
+          await pause(400);
+          assert.ok(onScreen((await workCDP.send('Browser.getWindowForTarget')).bounds, presenterScreen), `${scenario}: workbench after swap ${index + 1}`);
+          assert.equal(await read('document.documentElement.dataset.role'), 'audience');
+          assert.equal(await read('!!document.fullscreenElement'), true);
+          assert.equal(await read('window.__fullscreenRequests.at(-1).left'), audienceScreen.left);
+          assert.equal(await workbench.locator('#presenter-counter').textContent(), '2 / 8');
+          assert.equal(await workbench.locator('#presenter-timer-toggle').textContent(), '继续');
+          assert.equal(context.pages().length, 2);
+        }
       }
       const closed = workbench.waitForEvent('close');
       await workbench.locator('#presenter-exit').click();
