@@ -25,6 +25,9 @@ jobs:
         with:
           node-version: 20
 
+      - name: Verify template styles refresh without reloading
+        run: node tests/template-style-refresh.cjs
+
       - name: Verify repeated web swaps with delayed window placement
         run: node tests/web-swap.cjs
 
