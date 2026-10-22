@@ -7,7 +7,15 @@ display_dir=$(mktemp -d)
 display_number=90
 while [[ -e /tmp/.X${display_number}-lock ]]; do display_number=$((display_number + 1)); done
 export DISPLAY=:$display_number
+display_stage="starting Xorg"
 cleanup() {
+  local status=$?
+  if (( status != 0 )); then
+    printf '[native-displays] Failed during %s (exit %s)\n' "$display_stage" "$status" >&2
+    for log in "$display_dir/xorg.log" "$display_dir/openbox.log"; do
+      if [[ -s "$log" ]]; then printf '[native-displays] %s\n' "$log" >&2; cat "$log" >&2; fi
+    done
+  fi
   kill "${wm_pid:-}" 2>/dev/null || true
   sudo kill "${x_pid:-}" 2>/dev/null || true
   rm -rf "$display_dir"
@@ -37,20 +45,26 @@ Section "Screen"
   EndSubSection
 EndSection
 XORG
+printf '[native-displays] Starting Xorg on %s\n' "$DISPLAY"
 sudo Xorg "$DISPLAY" -config "$display_dir/xorg.conf" -noreset -nolisten tcp -ac > "$display_dir/xorg.log" 2>&1 &
 x_pid=$!
 for attempt in {1..100}; do
   if xdpyinfo >/dev/null 2>&1; then break; fi
-  if ! kill -0 "$x_pid" 2>/dev/null; then cat "$display_dir/xorg.log"; exit 1; fi
+  if ! sudo kill -0 "$x_pid" 2>/dev/null; then
+    echo "[native-displays] Xorg exited before the display became ready" >&2
+    exit 1
+  fi
   sleep .1
 done
 xdpyinfo >/dev/null
+display_stage="configuring XRandR outputs"
 xrandr --query
 xrandr --newmode HIT-1920x1080 148.50 1920 2008 2052 2200 1080 1084 1089 1125 +HSync +VSync
 xrandr --newmode HIT-2560x1440 241.50 2560 2608 2640 2720 1440 1443 1448 1481 +HSync -VSync
 xrandr --addmode DUMMY0 HIT-1920x1080
 xrandr --addmode DUMMY1 HIT-2560x1440
 xrandr --output DUMMY0 --mode HIT-1920x1080 --primary --pos 0x0 --output DUMMY1 --mode HIT-2560x1440 --pos 1920x0
+display_stage="starting the window manager"
 openbox --sm-disable > "$display_dir/openbox.log" 2>&1 &
 wm_pid=$!
 for attempt in {1..100}; do
@@ -59,4 +73,5 @@ for attempt in {1..100}; do
 done
 xprop -root _NET_SUPPORTING_WM_CHECK | grep -q 'window id' || { cat "$display_dir/openbox.log"; exit 1; }
 xrandr --listmonitors
+display_stage="running browser fullscreen checks"
 HIT_NATIVE_DISPLAYS=1 node tests/web-presenter-fullscreen.cjs
