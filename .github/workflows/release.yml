@@ -1,16 +1,16 @@
-name: Publish or Update v1.2 Release
+name: Publish or Update v1.3 Release
 
 on:
   push:
     branches: [main]
-    paths: [HIT-HTML.html, .github/workflows/release.yml, tools/local/**, tools/package_local.py, tests/launcher-browser.cjs, tests/web-presenter-fullscreen.cjs, tests/web-swap.cjs, tests/native-displays.sh]
+    paths: [HIT-HTML.html, docs/RELEASE_v1.3.md, .github/workflows/release.yml, tools/local/**, tools/package_local.py, tests/launcher-browser.cjs, tests/web-presenter-fullscreen.cjs, tests/web-swap.cjs, tests/native-displays.sh]
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: release-v1.2
+  group: release-v1.3
   cancel-in-progress: false
 
 jobs:
@@ -42,32 +42,29 @@ jobs:
           bash tests/native-displays.sh
           node tests/local-launcher.cjs
           node tests/launcher-browser.cjs
-      - name: Upload, verify and publish v1.2
+      - name: Upload, verify and publish v1.3
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          if gh release view v1.2 > /dev/null 2>&1; then
-            gh release upload v1.2 HIT-HTML.html dist/HIT-HTML-local.cmd --clobber
+          if gh release view v1.3 > /dev/null 2>&1; then
+            gh release upload v1.3 HIT-HTML.html dist/HIT-HTML-local.cmd --clobber
           else
-            gh release create v1.2 HIT-HTML.html dist/HIT-HTML-local.cmd \
+            gh release create v1.3 HIT-HTML.html dist/HIT-HTML-local.cmd \
               --target "$GITHUB_SHA" \
-              --title "HIT-HTML v1.2" \
-              --notes-file docs/RELEASE_v1.2.md \
+              --title "HIT-HTML v1.3" \
+              --notes-file docs/RELEASE_v1.3.md \
               --draft
           fi
-          gh release download v1.2 \
+          gh release download v1.3 \
             --pattern HIT-HTML.html \
             --pattern HIT-HTML-local.cmd \
-            --dir "$RUNNER_TEMP/release-v1.2"
-          cmp HIT-HTML.html "$RUNNER_TEMP/release-v1.2/HIT-HTML.html"
-          cmp dist/HIT-HTML-local.cmd "$RUNNER_TEMP/release-v1.2/HIT-HTML-local.cmd"
-          if [[ "$(gh release view v1.2 --json assets --jq 'any(.assets[]; .name == "HIT-HTML-local-v1.2.zip")')" == true ]]; then
-            gh release delete-asset v1.2 HIT-HTML-local-v1.2.zip --yes
-          fi
-          test "$(gh release view v1.2 --json assets --jq '.assets | map(.name) | sort | join(",")')" = 'HIT-HTML-local.cmd,HIT-HTML.html'
-          gh release edit v1.2 --draft=false --latest --notes-file docs/RELEASE_v1.2.md
+            --dir "$RUNNER_TEMP/release-v1.3"
+          cmp HIT-HTML.html "$RUNNER_TEMP/release-v1.3/HIT-HTML.html"
+          cmp dist/HIT-HTML-local.cmd "$RUNNER_TEMP/release-v1.3/HIT-HTML-local.cmd"
+          test "$(gh release view v1.3 --json assets --jq '.assets | map(.name) | sort | join(",")')" = 'HIT-HTML-local.cmd,HIT-HTML.html'
+          gh release edit v1.3 --draft=false --latest --notes-file docs/RELEASE_v1.3.md
 
 
 

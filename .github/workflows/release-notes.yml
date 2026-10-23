@@ -1,10 +1,10 @@
-name: Update v1.2 Release Notes
+name: Update v1.3 Release Notes
 
 on:
   push:
     branches: [main]
     paths:
-      - docs/RELEASE_v1.2.md
+      - docs/RELEASE_v1.3.md
       - .github/workflows/release-notes.yml
   workflow_dispatch:
 
@@ -12,7 +12,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: release-notes-v1.2
+  group: release-notes-v1.3
   cancel-in-progress: false
 
 jobs:
@@ -24,4 +24,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: gh release edit v1.2 --notes-file docs/RELEASE_v1.2.md
+        run: |
+          if gh release view v1.3 > /dev/null 2>&1; then
+            gh release edit v1.3 --notes-file docs/RELEASE_v1.3.md
+          else
+            echo "v1.3 will be created with these notes by release.yml."
+          fi

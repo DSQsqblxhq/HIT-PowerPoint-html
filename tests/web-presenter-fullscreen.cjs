@@ -147,7 +147,7 @@ const nativeDisplays = process.env.HIT_NATIVE_DISPLAYS === '1';
       assert.equal(new URL(main.url()).searchParams.has('hit-session'), false);
       assert.equal(new URL(workbench.url()).searchParams.has('hit-session'), false);
       await workbench.locator('#presenter-next').click();
-      await until(() => read('document.getElementById("counter").textContent==="2 / 8" && !!document.fullscreenElement'));
+      await until(() => read('document.getElementById("counter").textContent==="2 / 10" && !!document.fullscreenElement'));
       await workbench.locator('#presenter-timer-toggle').click();
       if (scenario === 'left' || scenario === 'right') {
         const onScreen = (bounds, screen) => {
@@ -201,7 +201,7 @@ const nativeDisplays = process.env.HIT_NATIVE_DISPLAYS === '1';
           assert.equal(await read('A.currentScreen.left'), audienceScreen.left);
           assert.equal(await read('A.currentScreen.top'), audienceScreen.top);
           assert.equal(await read('window.__fullscreenRequests.at(-1).left'), audienceScreen.left);
-          assert.equal(await workbench.locator('#presenter-counter').textContent(), '2 / 8');
+          assert.equal(await workbench.locator('#presenter-counter').textContent(), '2 / 10');
           assert.equal(await workbench.locator('#presenter-timer-toggle').textContent(), '继续');
           assert.equal(context.pages().length, 2);
         }
