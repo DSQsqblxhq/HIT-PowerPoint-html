@@ -61,7 +61,7 @@ jobs:
             const page=await context.newPage();
             const base=pathToFileURL(path.resolve('HIT-HTML.html')).href;
             fs.mkdirSync('docs/screenshots',{recursive:true});
-            const targets=[{index:0,name:'cover'},{index:8,name:'ending'},{index:9,name:'master'},{index:3,name:'content'},{index:4,name:'route'}];
+            const targets=[{index:0,name:'cover'},{index:7,name:'ending'},{index:8,name:'master'},{index:3,name:'content'},{index:4,name:'route'}];
             for(const target of targets){
              await page.goto(base+'#/'+target.index,{waitUntil:'load'});
              await page.waitForFunction(index=>document.querySelectorAll('#stage > .slide')[index]?.classList.contains('active'),target.index);
@@ -79,7 +79,7 @@ jobs:
             await page.locator('#presenter-layout').click();
             await page.evaluate(()=>document.fonts.ready);
             await page.waitForFunction(()=>document.getElementById('preview-current-stage').childElementCount>0&&document.getElementById('preview-next-stage').childElementCount>0);
-            assert.equal(await page.locator('#presenter-counter').textContent(),'4 / 10');
+            assert.equal(await page.locator('#presenter-counter').textContent(),'4 / 9');
             assert.equal(new URL(page.url()).searchParams.has('hit-session'),false);
             await page.locator('#presenter-layout').blur();
             await page.screenshot({path:'docs/screenshots/presenter.png',animations:'disabled'});

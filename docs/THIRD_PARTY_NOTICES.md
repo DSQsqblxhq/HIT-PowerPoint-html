@@ -72,12 +72,3 @@
 若需要对外分发修改版，请保留相关署名、来源和已有许可，并核实所使用设计与素材的适用授权。若某项素材授权无法确认，可以获取权利人的明确许可，或替换为来源和授权清楚的素材。
 
 欢迎相关权利人通过仓库 Issue 补充原始链接、作者署名或授权依据；维护者可据此修订说明并处理相关内容。
-
-
-
-## v1.3 内容页字体
-
-- 来源：[Adobe Source Han Sans](https://github.com/adobe-fonts/source-han-sans)，Source Han Sans CN Medium。
-- 许可：[SIL Open Font License 1.1](../licenses/SourceHanSans-OFL.txt)。
-- 修改：仅保留当前内容页示例字形，转换为 WOFF2，字体重命名为 `HIT NSFC Text`。许可全文随独立 HTML 保留。
-- 用户提供的答辩示例仅用于参考排版；仓库不分发原始 PDF、原示例研究图片或个人信息。

@@ -27,7 +27,7 @@
       <sub>封面页</sub>
     </td>
     <td align="center">
-      <a href="https://dsqsqblxhq.github.io/HIT-PowerPoint-html/HIT-HTML.html#/8">
+      <a href="https://dsqsqblxhq.github.io/HIT-PowerPoint-html/HIT-HTML.html#/7">
         <img src="docs/screenshots/ending.png" alt="结尾页" width="480">
       </a>
       <br>
@@ -36,7 +36,7 @@
   </tr>
   <tr>
     <td align="center">
-      <a href="https://dsqsqblxhq.github.io/HIT-PowerPoint-html/HIT-HTML.html#/9">
+      <a href="https://dsqsqblxhq.github.io/HIT-PowerPoint-html/HIT-HTML.html#/8">
         <img src="docs/screenshots/master.png" alt="母版页" width="480">
       </a>
       <br>
@@ -72,8 +72,8 @@
 
 | 功能 | 说明 |
 | --- | --- |
-| HIT 风格模板 | 16:9 自适应缩放，含封面、目录、章节、5 种基金答辩内容页、结尾和空白母版 |
-| 基金答辩内容页 | 科学问题、技术路线、研究证据、申请人信息、科研条件保障；蓝框为图片预留位置，正文参考思源黑体 Medium |
+| HIT 风格模板 | 16:9 自适应缩放，含封面、目录、5 种基金答辩内容页、结尾和空白母版 |
+| 基金答辩内容页 | 科学问题、技术路线、研究证据、申请人信息、科研条件保障；申请人页作为研究背景页，蓝框为图片预留位置，沿用默认字体 |
 | 单文件离线放映 | 样式、脚本与 SVG 资源内嵌，支持键盘、鼠标和触屏操作 |
 | 全屏与双屏 | 网页副屏自动全屏、同步翻页、选择播放屏幕与换屏 |
 | 总览与导航 | 幻灯片缩略图跳转、章节导航 |
@@ -99,7 +99,6 @@
 
 - 模板参考：[yhao-z/HIT-PowerPoint](https://github.com/yhao-z/HIT-PowerPoint)。
 - 演讲者模式参考：[lewislulu/html-ppt-skill](https://github.com/lewislulu/html-ppt-skill)（作者 lewis，[MIT](licenses/html-ppt-skill-MIT.txt)）。
-- 内容页字体：[Source Han Sans](https://github.com/adobe-fonts/source-han-sans)（[SIL OFL 1.1](licenses/SourceHanSans-OFL.txt)），内嵌当前示例文字的 Medium 子集。
 - 页签组件参考：Open Design `fs-notebook-tabs`（[MIT](licenses/open-design-fs-notebook-tabs-MIT.txt)）。
 
 本仓库代码采用 [MIT](LICENSE)；PPT 设计、学校标识及字形等素材的来源、署名与使用范围见 [来源与第三方说明](docs/THIRD_PARTY_NOTICES.md)。
