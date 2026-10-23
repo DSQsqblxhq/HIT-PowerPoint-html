@@ -125,8 +125,9 @@ SOFTWARE.
 .nsfc-evidence-notes .nsfc-takeaway{font-size:32px;line-height:1.5;font-weight:700;color:var(--hit-blue);padding:0 8px}
 .nsfc-evidence-panel>.nsfc-conclusion{margin:0 -28px;font-size:32px}
 /* 申请人：照片、基本信息、研究方向与经历（示例第 1 页）。 */
-.nsfc-profile-body{grid-template-rows:360px 64px minmax(0,1fr)}
-.nsfc-profile-top{display:grid;grid-template-columns:22% minmax(0,1fr);gap:20px;min-height:0}
+.nsfc-profile-body{--nsfc-photo-height:360px;grid-template-rows:var(--nsfc-photo-height) 64px minmax(0,1fr)}
+/* 2 寸证件照按 35mm × 49mm 保持宽高比，照片框与右侧信息区等高。 */
+.nsfc-profile-top{display:grid;grid-template-columns:calc(var(--nsfc-photo-height) * 35 / 49) minmax(0,1fr);gap:20px;min-height:0}
 .nsfc-profile-info{padding:22px 32px}
 .nsfc-profile-info h3{font-size:44px;padding-bottom:14px;border-bottom:1px solid #e0e7ef}
 .nsfc-facts{display:grid;grid-template-columns:1fr 1fr;gap:22px 28px;margin:24px 0 0}
