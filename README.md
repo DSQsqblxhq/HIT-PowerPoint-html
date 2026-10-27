@@ -85,7 +85,7 @@
 - **直接放映**：下载 [HIT-HTML.html](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.3/HIT-HTML.html)，用浏览器打开。
 - **Windows 本地自动双屏**：下载并双击 [HIT-HTML-local.cmd](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.3/HIT-HTML-local.cmd)，使用新版 Edge / Chrome；只需这一个文件，无需联网、Python 或管理员权限。
 
-双屏使用时，将系统显示设为“扩展”，使用新版 Edge / Chrome，点击“演讲”并允许屏幕管理和弹窗。在线版与 CMD 模式均可让观众画面在副屏自动全屏，工作台在原屏幕窗口显示。CMD 的终端和首页跟随启动屏幕，首页使用带地址栏和标签栏的普通浏览器窗口；演示期间保持终端打开，结束时在终端按 `Q` 或 `Esc`（无需回车），同时关闭放映窗口和本地服务。
+双屏使用时，将系统显示设为“扩展”，使用新版 Edge / Chrome，点击“演讲”并允许屏幕管理和弹窗。在线版与 CMD 模式均可让观众画面在副屏自动全屏，工作台在原屏幕窗口显示。CMD 演示期间保持终端打开，结束时在终端按 `Q` 或 `Esc`（无需回车），同时关闭放映窗口和本地服务。
 
 常用快捷键：`←` / `→` 翻页，空格下一页，`F` 全屏，`G` 总览，`S` 演讲。鼠标移至页面底部可显示控制栏。
 
