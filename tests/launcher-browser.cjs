@@ -71,11 +71,11 @@ const until = async (condition, message, timeout = 20000) => {
     }
     session.context = session.browser.contexts()[0];
     const matches = page => page.url().split(/[?#]/)[0] === session.info.url;
-    // The shell fixture has no app-window frontend; real Chrome/Edge CI must open --app itself.
+    // The shell fixture has no browser frontend; real Chrome/Edge CI must open the page itself.
     if (process.env.HIT_TEST_HEADLESS_SHELL === '1' && !session.context.pages().some(matches)) {
       await (session.context.pages()[0] || await session.context.newPage()).goto(session.info.url);
     }
-    await until(() => session.context.pages().some(matches), 'App page did not open');
+    await until(() => session.context.pages().some(matches), 'Browser page did not open');
     session.page = session.context.pages().find(matches);
     await session.page.waitForLoadState();
     const cdp = await session.context.newCDPSession(session.page);
@@ -89,6 +89,7 @@ const until = async (condition, message, timeout = 20000) => {
       assert.deepEqual(report.windowRect, report.launchBounds);
       const bounds = (await cdp.send('Browser.getWindowForTarget')).bounds;
       assert.notEqual(bounds.windowState, 'fullscreen', 'Initial presentation must stay windowed, including after a fullscreen shutdown');
+      assert.ok(await session.page.evaluate(() => outerHeight - innerHeight >= 60), 'Initial browser must show its tab and address bars');
       // CDP may exclude invisible Windows resize borders from native window bounds.
       const center = [bounds.left + bounds.width / 2, bounds.top + bounds.height / 2];
       assert.ok(center[0] >= report.launchBounds[0] && center[0] < report.launchBounds[0] + report.launchBounds[2]);

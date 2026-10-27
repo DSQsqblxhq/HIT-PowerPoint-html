@@ -12,7 +12,7 @@ $SelfPath = (Resolve-Path -LiteralPath $SelfPath).Path
 $onWindows = [Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT
 $launchBounds = $null
 $launchSource = 0L
-if ($onWindows -and -not $NoBrowser) {
+if ($onWindows) {
     # Snapshot the source Explorer window before browser startup changes focus.
     $sourceWindows = @()
     $shell = $null
@@ -32,6 +32,7 @@ if ($onWindows -and -not $NoBrowser) {
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Text;
 public static class HitLaunchWindow {
     [StructLayout(LayoutKind.Sequential)] struct Point { public int X, Y; }
     [StructLayout(LayoutKind.Sequential)] struct Rect { public int Left, Top, Right, Bottom; }
@@ -39,6 +40,11 @@ public static class HitLaunchWindow {
     delegate bool WindowCallback(IntPtr window, IntPtr data);
     [DllImport("user32.dll")] static extern bool EnumWindows(WindowCallback callback, IntPtr data);
     [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr window);
+    [DllImport("kernel32.dll")] static extern IntPtr GetConsoleWindow();
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetWindowText(IntPtr window, StringBuilder text, int count);
+    [DllImport("user32.dll")] static extern bool IsIconic(IntPtr window);
+    [DllImport("user32.dll")] static extern bool IsZoomed(IntPtr window);
+    [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr window, int command);
     [DllImport("user32.dll")] static extern IntPtr GetAncestor(IntPtr window, uint flags);
     [DllImport("user32.dll")] static extern bool GetCursorPos(out Point point);
     [DllImport("user32.dll")] static extern IntPtr MonitorFromPoint(Point point, uint flags);
@@ -73,6 +79,37 @@ public static class HitLaunchWindow {
             return new[] { r.Left, r.Top, r.Right - r.Left, r.Bottom - r.Top };
         } finally { LeaveDpi(old); }
     }
+    public static long ConsoleWindow(string token) {
+        IntPtr console = GetConsoleWindow();
+        if (console != IntPtr.Zero && IsWindowVisible(console)) return console.ToInt64();
+        // Windows Terminal hosts a hidden pseudoconsole; identify its visible host
+        // by a temporary unique title instead of moving an unrelated foreground window.
+        IntPtr host = IntPtr.Zero;
+        EnumWindows(delegate(IntPtr window, IntPtr unused) {
+            if (!IsWindowVisible(window)) return true;
+            var title = new StringBuilder(1024);
+            GetWindowText(window, title, title.Capacity);
+            if (title.ToString().Contains(token)) { host = window; return false; }
+            return true;
+        }, IntPtr.Zero);
+        return host.ToInt64();
+    }
+    public static int[] PlaceConsole(long handle, int[] work) {
+        IntPtr old = EnterDpi();
+        try {
+            IntPtr window = new IntPtr(handle);
+            if (!IsWindowVisible(window)) return null;
+            if (IsIconic(window) || IsZoomed(window)) ShowWindow(window, 9);
+            Rect r;
+            if (!GetWindowRect(window, out r)) return null;
+            int width = Math.Min(r.Right - r.Left, work[2]);
+            int height = Math.Min(r.Bottom - r.Top, work[3]);
+            int left = work[0] + (work[2] - width) / 2;
+            int top = work[1] + (work[3] - height) / 2;
+            if (!SetWindowPos(window, IntPtr.Zero, left, top, width, height, 0x14) || !GetWindowRect(window, out r)) return null;
+            return new[] { r.Left, r.Top, r.Right - r.Left, r.Bottom - r.Top };
+        } finally { LeaveDpi(old); }
+    }
     public static int[] Place(long handle, uint owner, int[] bounds) {
         IntPtr old = EnterDpi();
         try {
@@ -94,7 +131,7 @@ public static class HitLaunchWindow {
         uint actualOwner;
         GetWindowThreadProcessId(window, out actualOwner);
         if (actualOwner != owner || !IsWindowVisible(window)) return false;
-        // Exit only a remembered native fullscreen state of the initial app window.
+        // Exit only a remembered native fullscreen state of the initial browser window.
         if ((GetWindowLong(window, -16) & 0x00c40000) != 0) return true;
         return PostMessage(window, 0x0100, new IntPtr(0x7a), new IntPtr(0x00570001)) &&
             PostMessage(window, 0x0101, new IntPtr(0x7a), new IntPtr(unchecked((int)0xc0570001)));
@@ -139,6 +176,9 @@ $boundPort = $listener.LocalEndpoint.Port
 $url = 'http://127.0.0.1:{0}/HIT-HTML.html' -f $boundPort
 $browserState = @{ Process = $null; Lock = $null; Path = $null; OwnerFile = $null; Temporary = $false; Window = 0L; WindowRect = $null; Placed = $false; PlaceUntil = $null; WindowSince = $null; PageServed = $false; WindowedRequested = $false }
 $consoleInput = -not [Console]::IsInputRedirected
+$consoleWindow = 0L
+$consoleRect = $null
+$oldConsoleTitle = $null
 $oldControlC = $null
 $stdinStream = $null
 $stdinTask = $null
@@ -196,7 +236,7 @@ function Start-PresentationBrowser([string]$Executable) {
         $browserState.Temporary = $true
     }
     # Quotes belong in ArgumentList on Windows PowerShell, including paths with spaces.
-    $arguments = @('--no-first-run', '--no-default-browser-check', '--disable-background-mode', ('--user-data-dir="{0}"' -f $browserState.Path), ('--app="{0}"' -f $url))
+    $arguments = @('--no-first-run', '--no-default-browser-check', '--disable-background-mode', ('--user-data-dir="{0}"' -f $browserState.Path), '--new-window', ('"{0}"' -f $url))
     if ($launchBounds) {
         $arguments += ('--window-position={0},{1}' -f $launchBounds[0], $launchBounds[1])
         $arguments += ('--window-size={0},{1}' -f $launchBounds[2], $launchBounds[3])
@@ -212,7 +252,7 @@ function Start-PresentationBrowser([string]$Executable) {
 
 function Write-ReadyInfo {
     if (-not $ReadyFile) { return }
-    @{ url = $url; port = $boundPort; address = '127.0.0.1'; browserPid = $(if ($browserState.Process) { $browserState.Process.Id } else { 0 }); profile = $browserState.Path; launchBounds = $launchBounds; launchSource = $launchSource; windowPlaced = $browserState.Placed; windowRect = $browserState.WindowRect } |
+    @{ url = $url; port = $boundPort; address = '127.0.0.1'; browserPid = $(if ($browserState.Process) { $browserState.Process.Id } else { 0 }); profile = $browserState.Path; launchBounds = $launchBounds; launchSource = $launchSource; consoleWindow = $consoleWindow; consoleRect = $consoleRect; windowPlaced = $browserState.Placed; windowRect = $browserState.WindowRect } |
         ConvertTo-Json -Compress | Set-Content -LiteralPath ($ReadyFile + '.tmp') -Encoding UTF8
     Move-Item -LiteralPath ($ReadyFile + '.tmp') -Destination $ReadyFile -Force
 }
@@ -226,7 +266,7 @@ function Update-LaunchWindow {
         if (-not $browserState.Window) { return }
         $browserState.WindowSince = [DateTime]::UtcNow
     }
-    # Pin only the initial app window; never reposition a later audience popup.
+    # Pin only the initial browser window; never reposition a later audience popup.
     $browserState.WindowRect = [HitLaunchWindow]::Place($browserState.Window, [uint32]$browserState.Process.Id, [int[]]$launchBounds)
     if (-not $browserState.WindowedRequested -and $browserState.PageServed -and ([DateTime]::UtcNow - $browserState.WindowSince).TotalSeconds -ge 0.25) {
         $browserState.WindowedRequested = [HitLaunchWindow]::RestoreWindowed($browserState.Window, [uint32]$browserState.Process.Id)
@@ -277,6 +317,21 @@ function Send-Response($Stream, [int]$Status, [string]$Reason, [byte[]]$Body, [b
 }
 
 try {
+    if ($onWindows -and $consoleInput -and $launchBounds) {
+        $oldConsoleTitle = [Console]::Title
+        $consoleToken = 'HIT-' + [Guid]::NewGuid().ToString('N')
+        [Console]::Title = $consoleToken
+        $consoleDeadline = [DateTime]::UtcNow.AddSeconds(2)
+        do {
+            $consoleWindow = [HitLaunchWindow]::ConsoleWindow($consoleToken)
+            if ($consoleWindow) {
+                $consoleRect = [HitLaunchWindow]::PlaceConsole($consoleWindow, [int[]]$launchBounds)
+                break
+            }
+            Start-Sleep -Milliseconds 50
+        } while ([DateTime]::UtcNow -lt $consoleDeadline)
+        [Console]::Title = 'HIT 本地演示'
+    }
     Write-Host ''
     Write-Host 'HIT 本地演示已启动（无需联网）。'
     Write-Host $url
@@ -368,6 +423,7 @@ try {
 } finally {
     $listener.Stop()
     try { Stop-PresentationBrowser } finally {
+        if ($null -ne $oldConsoleTitle) { [Console]::Title = $oldConsoleTitle }
         if ($null -ne $oldControlC) { [Console]::TreatControlCAsInput = $oldControlC }
         if ($stdinStream) { $stdinStream.Dispose() }
         if ($ReadyFile) { Remove-Item -LiteralPath $ReadyFile -ErrorAction SilentlyContinue }

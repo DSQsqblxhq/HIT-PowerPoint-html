@@ -5,6 +5,7 @@ using System;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 public static class HitConsoleQuitTest {
+    [StructLayout(LayoutKind.Sequential)] struct Rect { public int Left, Top, Right, Bottom; }
     [StructLayout(LayoutKind.Explicit, CharSet = CharSet.Unicode)]
     public struct InputRecord {
         [FieldOffset(0)] public ushort EventType;
@@ -21,6 +22,14 @@ public static class HitConsoleQuitTest {
     [DllImport("kernel32.dll", SetLastError = true)] static extern bool GetConsoleMode(IntPtr handle, out uint mode);
     [DllImport("kernel32.dll", SetLastError = true)] static extern bool WriteConsoleInputW(IntPtr handle, InputRecord[] records, uint count, out uint written);
     [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
+    [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr window, out Rect rect);
+    [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr window);
+    public static int[] Bounds(long handle) {
+        Rect r;
+        IntPtr window = new IntPtr(handle);
+        if (!IsWindowVisible(window) || !GetWindowRect(window, out r)) throw new Exception("Launcher terminal is not visible");
+        return new[] { r.Left, r.Top, r.Right - r.Left, r.Bottom - r.Top };
+    }
     public static void Send(uint processId, bool controlC) {
         FreeConsole();
         if (!AttachConsole(processId)) throw new Win32Exception();
@@ -39,16 +48,25 @@ public static class HitConsoleQuitTest {
 $env:HIT_PRESENTATION_NO_BROWSER = '1'
 $env:HIT_PRESENTATION_PORT = '0'
 $env:HIT_PRESENTATION_READY_FILE = $ReadyFile
-$process = Start-Process -FilePath $env:ComSpec -ArgumentList @('/d', '/s', '/c', ('""{0}""' -f $Launcher)) -PassThru -WindowStyle Hidden
+$process = Start-Process -FilePath $env:ComSpec -ArgumentList @('/d', '/s', '/c', ('""{0}""' -f $Launcher)) -PassThru -WindowStyle Normal
 try {
     $deadline = [DateTime]::UtcNow.AddSeconds(20)
     while (-not (Test-Path -LiteralPath $ReadyFile) -and -not $process.HasExited -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 50 }
     if (-not (Test-Path -LiteralPath $ReadyFile)) { throw 'Native-console launcher did not become ready' }
+    $report = Get-Content -LiteralPath $ReadyFile -Raw | ConvertFrom-Json
+    if (-not $report.consoleWindow -or -not $report.consoleRect) { throw 'Visible terminal was not positioned' }
+    $rect = [HitConsoleQuitTest]::Bounds([long]$report.consoleWindow)
+    $work = $report.launchBounds
+    $centerX = $rect[0] + $rect[2] / 2
+    $centerY = $rect[1] + $rect[3] / 2
+    if ($centerX -lt $work[0] -or $centerX -ge $work[0] + $work[2] -or $centerY -lt $work[1] -or $centerY -ge $work[1] + $work[3]) {
+        throw 'Terminal opened outside the launch display'
+    }
     [HitConsoleQuitTest]::Send([uint32]$process.Id, $Key -eq 'CtrlC')
     if (-not $process.WaitForExit(8000)) { throw 'Native console still waits for input or a Y/N confirmation' }
     if ($process.ExitCode -ne 0) { throw "Native CMD failed with exit code $($process.ExitCode)" }
     if (Test-Path -LiteralPath $ReadyFile) { throw 'Native console did not clean up the local server' }
-    Write-Output "PASS native Windows console: $Key exits without Enter or a Y/N confirmation"
+    Write-Output "PASS native Windows console: launch-display placement; $Key exits without Enter or a Y/N confirmation"
 } finally {
     if (-not $process.HasExited) { & "$env:SystemRoot/System32/taskkill.exe" /PID $process.Id /T /F > $null 2>&1 }
     $process.Dispose()
