@@ -27,17 +27,23 @@ intro = '''HIT HTML 单文件本地双屏放映（Windows）
 固定资源以 HIT-GZIP 注释保存，启动时在内存中还原；保留这些标记和启动代码。
 按 UTF-8 保存后刷新即可；样式及脚本可修改独立 HTML 后重新构建 CMD。
 服务仅监听 127.0.0.1，HTML 在内存中还原，不解压临时 HTML；浏览器配置保存在本机应用数据目录。
+项目代码的 MIT 许可及上游许可见内嵌 HTML 开头；其他素材的来源与使用范围见下方第三方说明。
 '''
 notices = [intro]
 html = (root / 'HIT-HTML.html').read_bytes().decode('utf-8')
-# Their complete licenses already appear in the HTML; verify before omitting duplicate copies.
+project_license = (root / 'LICENSE').read_text(encoding='utf-8').rstrip('\n')
+license_block = f'<!-- HIT-HTML project code license (repository LICENSE)\n{project_license}\n-->'
+if html.replace('\r\n', '\n').count(license_block) != 1:
+    raise ValueError('Update the HIT-HTML project license comment to match the repository LICENSE.')
+
+# The embedded HTML carries the checked project license; only add missing upstream notices.
 normalize = lambda text: re.sub(r'\s+', ' ', text).strip()
 for name in ['open-design-fs-notebook-tabs-MIT.txt', 'html-ppt-skill-MIT.txt']:
     license_text = (root / 'licenses' / name).read_text(encoding='utf-8').strip()
     if normalize(license_text) not in normalize(html):
         notices.append('\n===== licenses/' + name + ' =====\n' + license_text)
-for name in ['LICENSE', 'docs/THIRD_PARTY_NOTICES.md']:
-    notices.append('\n===== ' + name + ' =====\n' + (root / name).read_text(encoding='utf-8'))
+notices.append('\n===== docs/THIRD_PARTY_NOTICES.md =====\n' +
+               (root / 'docs/THIRD_PARTY_NOTICES.md').read_text(encoding='utf-8'))
 prefix = (bootstrap + '# === HIT LOCAL START ===\n' + script +
           '\n# === HIT LOCAL END ===\n\n' + '\n'.join(notices) +
           '\n<!-- === HIT HTML START === -->\n')

@@ -3,7 +3,7 @@ name: Publish or Update v1.3 Release
 on:
   push:
     branches: [main]
-    paths: [HIT-HTML.html, docs/RELEASE_v1.3.md, .github/workflows/release.yml, tools/local/**, tools/package_local.py, tests/launcher-browser.cjs, tests/web-presenter-fullscreen.cjs, tests/web-swap.cjs, tests/native-displays.sh]
+    paths: [HIT-HTML.html, LICENSE, licenses/**, docs/THIRD_PARTY_NOTICES.md, docs/RELEASE_v1.3.md, .github/workflows/release.yml, tools/local/**, tools/package_local.py, tests/launcher-browser.cjs, tests/web-presenter-fullscreen.cjs, tests/web-swap.cjs, tests/native-displays.sh]
   workflow_dispatch:
 
 permissions:
