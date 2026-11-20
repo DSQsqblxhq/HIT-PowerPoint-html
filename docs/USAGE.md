@@ -10,7 +10,7 @@
 
 启动器使用专用的 Edge / Chrome 放映窗口，关闭时只处理本次演示的浏览器进程。专用浏览器配置保存在 `%LOCALAPPDATA%\HIT-HTML`；首次使用需要允许屏幕管理权限，同一文件、同一本机地址下的授权、字号和布局可在正常重新启动后保留。手动复制地址打开的浏览器页面需自行关闭。在浏览器页面内按 `Esc` 仍用于关闭总览、退出全屏或工作台，终端的退出快捷键需要在终端获得焦点时使用。
 
-启动器优先使用已安装的 Edge 或 Chrome；若未自动打开，请将显示的地址复制到新版 Edge / Chrome。编辑时用文本编辑器打开该 CMD，在末尾的 HTML 区域修改页面文字、`CONFIG` 章节及 `NOTES` 讲稿，保留启动代码、分隔标记和 `HIT-GZIP` 注释，按 UTF-8 保存后刷新即可。固定 SVG、样式和脚本在 CMD 内压缩，服务每次请求时在内存中还原，不会生成临时 HTML。需要修改这些资源时，编辑独立 HTML 后重新构建 CMD。若编辑器使用 CRLF 换行也可以正常启动。
+启动器优先使用已安装的 Edge 或 Chrome；若未自动打开，请将显示的地址复制到新版 Edge / Chrome。编辑时用文本编辑器打开该 CMD，在末尾的 HTML 区域修改页面文字、`CONFIG` 章节及 `NOTES` 讲稿，保留启动代码、分隔标记、`HIT-PS` 及 `HIT-GZIP` 注释，按 UTF-8 保存后刷新即可。启动脚本以 `HIT-PS` 注释、固定 SVG / 样式 / 脚本以 `HIT-GZIP` 注释在 CMD 内压缩，每次请求时在内存中还原，不会生成临时 HTML。需要修改这些内容时，编辑独立 HTML 或 `tools/local/Start-Presentation.ps1` 后重新构建 CMD。若编辑器使用 CRLF 换行也可以正常启动。
 
 单个 `.html` 不能自行启动本机服务，因此该自动本地双屏版本使用 `.cmd` 扩展名；原 `HIT-HTML.html` 的直接放映方式继续保留。仓库开发者可运行 `python tools/package_local.py`，从根目录 HTML 和启动器源代码生成 `dist/HIT-HTML-local.cmd`；这是构建步骤，使用者无需 Python。
 
