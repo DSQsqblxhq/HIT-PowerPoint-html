@@ -1,0 +1,23 @@
+{
+  "name": "hit-powerpoint-html",
+  "private": true,
+  "description": "Build and verification tooling for the single-file HIT presentation deck",
+  "scripts": {
+    "build:html": "node tools/python.cjs tools/build_html.py",
+    "build:cmd": "node tools/python.cjs tools/package_local.py",
+    "check:html": "node tools/python.cjs tools/build_html.py --check",
+    "test:structure": "node tests/deck-structure.cjs",
+    "test:swap": "node tests/web-swap.cjs",
+    "test:style": "node tests/template-style-refresh.cjs",
+    "test:offline": "node tests/local-launcher-offline.cjs",
+    "test:print": "node tests/print-export.cjs",
+    "test:presenter": "node tests/presenter-multiscreen.cjs",
+    "test": "npm run check:html && npm run test:structure && npm run test:swap && npm run test:style"
+  },
+  "devDependencies": {
+    "playwright": "1.65.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

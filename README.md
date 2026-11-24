@@ -4,7 +4,7 @@
 
 **哈尔滨工业大学学术汇报 HTML 模板**
 
-[在线预览](https://dsqsqblxhq.github.io/HIT-PowerPoint-html/HIT-HTML.html) · [下载 HTML](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.3/HIT-HTML.html) · [下载 Windows 双屏 CMD](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.3/HIT-HTML-local.cmd)
+[在线预览](https://dsqsqblxhq.github.io/HIT-PowerPoint-html/HIT-HTML.html) · [下载 HTML](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/latest/download/HIT-HTML.html) · [下载 Windows 双屏 CMD](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/latest/download/HIT-HTML-local.cmd)
 
 [![GitHub Release](https://img.shields.io/github/v/release/DSQsqblxhq/HIT-PowerPoint-html)](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases)
 [![License](https://img.shields.io/github/license/DSQsqblxhq/HIT-PowerPoint-html)](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/blob/main/LICENSE)
@@ -82,8 +82,8 @@
 
 ## 快速开始
 
-- **直接放映**：下载 [HIT-HTML.html](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.3/HIT-HTML.html)，用浏览器打开。
-- **Windows 本地自动双屏**：下载并双击 [HIT-HTML-local.cmd](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/download/v1.3/HIT-HTML-local.cmd)，使用新版 Edge / Chrome；只需这一个文件，无需联网、Python 或管理员权限。
+- **直接放映**：下载 [HIT-HTML.html](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/latest/download/HIT-HTML.html)，用浏览器打开。
+- **Windows 本地自动双屏**：下载并双击 [HIT-HTML-local.cmd](https://github.com/DSQsqblxhq/HIT-PowerPoint-html/releases/latest/download/HIT-HTML-local.cmd)，使用新版 Edge / Chrome；只需这一个文件，无需联网、Python 或管理员权限。
 
 双屏使用时，将系统显示设为“扩展”，使用新版 Edge / Chrome，点击“演讲”并允许屏幕管理和弹窗。在线版与 CMD 模式均可让观众画面在副屏自动全屏，工作台在原屏幕窗口显示。CMD 演示期间保持终端打开，结束时在终端按 `Q` 或 `Esc`（无需回车），同时关闭放映窗口和本地服务。
 
@@ -94,6 +94,18 @@
 用文本编辑器修改标题、正文和封面信息；`CONFIG.sections` 设置章节导航，`NOTES` 设置逐页讲稿和建议时长。保存后刷新浏览器；增删页面时同步调整章节页码和讲稿顺序。
 
 详细操作、CMD 编辑方法及完整快捷键见 [使用指南](docs/USAGE.md)。
+
+## 维护仓库
+
+样式与工作台脚本以可读源码放在 `src/`，`HIT-HTML.html` 中对应的代码块由脚本生成，避免手工编辑压缩代码：
+
+```bash
+python tools/build_html.py      # 由 src/ 重新生成内联的样式与脚本
+python tools/package_local.py   # 生成 dist/HIT-HTML-local.cmd（含解码回环校验）
+npm ci && npm test              # 核对 HTML 与 src/ 一致，并运行与浏览器无关的测试
+```
+
+`npm run test:print` 需要 Playwright 的 Chromium。版本号以 `HIT-HTML.html` 的 `<meta name="version">` 为唯一来源：发布流程据此选择 `docs/RELEASE_v<版本>.md` 和 release 标签，README 与使用指南的下载链接固定在 `releases/latest`，因此发版不需要改动文档。
 
 ## 来源与许可
 

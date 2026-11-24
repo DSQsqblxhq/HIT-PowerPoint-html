@@ -109,7 +109,7 @@ const until = async (condition, message, timeout = 20000) => {
     if (process.platform === 'win32') {
       const source = await explorer('Open');
       explorerWindow = source.hwnd;
-      if (!explorerWindow) console.log('Explorer fixture unavailable: testing native cursor-display fallback, placement and windowed startup');
+      if (!explorerWindow) console.log('::warning::Explorer fixture unavailable: testing native cursor-display fallback, placement and windowed startup instead of the Explorer-window source');
     }
     const openPresenter = async session => {
       await session.page.bringToFront();

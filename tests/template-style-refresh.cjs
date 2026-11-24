@@ -13,10 +13,10 @@ function stylesOf(source) {
   return [...source.matchAll(/<style data-hit-style="([^"]+)"[^>]*>([\s\S]*?)<\/style>/g)]
     .map(([, name, text]) => ({dataset: {hitStyle: name}, textContent: text}));
 }
-function setup({protocol = 'https:', responseHtml = latest, ok = true, reject = false, deferred = false} = {}) {
+function setup({protocol = 'https:', responseHtml = latest, ok = true, reject = false, deferred = false, queue = []} = {}) {
   const styles = stylesOf(stale), events = new Map(), calls = [], timers = new Map(), dispatched = [];
   assert.equal(styles.length, 2);
-  let now = 10000, timerId = 0, release, hidden = false, reloads = 0;
+  let now = 10000, timerId = 0, release, hidden = false, reloads = 0, texted = 0;
   const location = {protocol, href: `${protocol}//example.test/HIT-HTML.html?role=deck#/3`,
     reload() { reloads++; }};
   const originalHref = location.href;
@@ -25,6 +25,12 @@ function setup({protocol = 'https:', responseHtml = latest, ok = true, reject = 
     documentElement: {dataset: {}}, activeElement: null, get hidden() { return hidden; },
     addEventListener: listen, querySelectorAll() { return styles; },
   };
+  const response = ({status = 200, body = responseHtml, headers = {}, ok: forcedOk} = {}) => ({
+    status,
+    ok: forcedOk ?? (status >= 200 && status < 300),
+    headers: {get: name => headers[String(name).toLowerCase()] ?? null},
+    text: async () => { texted += 1; return body; },
+  });
   const context = {
     location, document, window: {addEventListener: listen,
       dispatchEvent(event) { const result = events.get(event.type)?.(event); if (result) dispatched.push(result); return true; }},
@@ -36,7 +42,7 @@ function setup({protocol = 'https:', responseHtml = latest, ok = true, reject = 
       calls.push({url, options});
       if (reject) throw new Error('Offline');
       if (deferred) await new Promise(resolve => { release = resolve; });
-      return {ok, text: async () => responseHtml};
+      return response(queue.length ? queue.shift() : {ok});
     },
     DOMParser: class {
       parseFromString(source) {
@@ -59,7 +65,7 @@ function setup({protocol = 'https:', responseHtml = latest, ok = true, reject = 
   return {styles, calls, events, timers, location, originalHref, dispatched, controls,
     navigate() { context.de(1); },
     advance() { now += 2000; }, hide(value) { hidden = value; }, release() { release(); },
-    get reloads() { return reloads; }, fire: event => events.get(event)?.()};
+    get reloads() { return reloads; }, get texted() { return texted; }, fire: event => events.get(event)?.()};
 }
 
 (async () => {
@@ -104,5 +110,24 @@ function setup({protocol = 'https:', responseHtml = latest, ok = true, reject = 
   assert.equal(busy.calls.length, 1, 'Immediate repeat events must be throttled');
   busy.advance(); const next = busy.fire('hashchange'); busy.release(); await next;
   assert.equal(busy.calls.length, 2);
+  // Conditional revalidation: after the first read the deck is probed with the validator it
+  // returned, so an unchanged file answers 304 and no slide change transfers the HTML again.
+  const conditional = setup({queue: [
+    {status: 200, headers: {etag: '"v1"'}},
+    {status: 304, headers: {etag: '"v1"'}},
+  ]});
+  await conditional.fire('pageshow');
+  assert.match(conditional.styles[0].textContent, /\.contents-item\{[^}]*font-size:64px/);
+  assert.equal(conditional.calls[0].options.headers['If-None-Match'], undefined,
+    'the first read has no validator yet');
+  assert.equal(conditional.texted, 1);
+  conditional.advance();
+  const settled = conditional.styles.map(style => style.textContent);
+  await conditional.fire('hit-slidechange');
+  assert.equal(conditional.calls[1].options.headers['If-None-Match'], '"v1"',
+    'later checks must revalidate with the stored validator');
+  assert.equal(conditional.texted, 1, 'a 304 must not read a response body');
+  assert.deepEqual(conditional.styles.map(style => style.textContent), settled,
+    'a 304 must leave the current styles untouched');
   console.log('Template styles refresh on load, focus and navigation without reloading or changing the URL; offline and failed responses preserve the current presentation');
 })().catch(error => { console.error(error); process.exit(1); });

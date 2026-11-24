@@ -157,6 +157,11 @@ function Read-Presentation {
             $assetStream.Dispose()
         }
     })
+    if ($html.Contains('<!--HIT-GZIP:')) {
+        # An edited marker (stray character, truncated payload) would otherwise render as a
+        # comment and silently lose the styles/scripts it stands for.
+        throw '内嵌资源标记不完整或已损坏，请恢复未被改动的 CMD，或重新下载完整的 HIT-HTML-local.cmd。'
+    }
     return ,([System.Text.Encoding]::UTF8.GetBytes($html))
 }
 [void](Read-Presentation)
@@ -182,6 +187,7 @@ $oldConsoleTitle = $null
 $oldControlC = $null
 $stdinStream = $null
 $stdinTask = $null
+$script:lastReadError = $null
 
 function Set-PresentationBrowserPermissions {
     # Configure only this launcher's owned profile and exact loopback origin.
@@ -259,7 +265,13 @@ function Write-ReadyInfo {
 
 function Update-LaunchWindow {
     if (-not $browserState.PlaceUntil -or -not $browserState.Process) { return }
-    if ([DateTime]::UtcNow -gt $browserState.PlaceUntil) { $browserState.PlaceUntil = $null; return }
+    if ([DateTime]::UtcNow -gt $browserState.PlaceUntil) {
+        $browserState.PlaceUntil = $null
+        if (-not $browserState.Placed) {
+            Write-Host '未能在 15 秒内定位放映窗口，已按浏览器默认位置显示；可自行把窗口拖到目标屏幕。'
+        }
+        return
+    }
     if (-not $browserState.Window) {
         $browserState.Process.Refresh()
         $browserState.Window = $browserState.Process.MainWindowHandle.ToInt64()
@@ -306,6 +318,20 @@ function Stop-PresentationBrowser {
             if (Test-Path -LiteralPath $browserState.Path) { Start-Sleep -Milliseconds 100 }
         }
     }
+}
+
+function New-PresentationErrorPage([string]$Reason) {
+    # A damaged CMD must not end the talk: answer with a fixable page instead.
+    $hint = '文件末尾的 HTML 区域可能保存不完整：请确认 <!--HIT-GZIP:...--> 注释与启动代码未被改动，并按 UTF-8 重新保存。'
+    $body = @"
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>HIT 本地演示：页面读取失败</title>
+<style>body{margin:0;padding:48px;font:16px/1.7 "Microsoft YaHei",system-ui,sans-serif;color:#162b43;background:#f4f7fb}h1{font-size:22px;margin:0 0 12px}p{margin:0 0 10px}code{background:#e6eef8;padding:1px 5px;border-radius:3px}</style></head>
+<body><h1>页面读取失败，放映服务仍在运行</h1>
+<p>$([System.Net.WebUtility]::HtmlEncode($Reason))</p>
+<p>$hint</p>
+<p>修复文件后按 F5 刷新即可恢复，无需重新启动或重新打开浏览器。</p></body></html>
+"@
+    return [System.Text.Encoding]::UTF8.GetBytes($body)
 }
 
 function Send-Response($Stream, [int]$Status, [string]$Reason, [byte[]]$Body, [bool]$HeadOnly) {
@@ -378,7 +404,16 @@ try {
         if ($browserState.Process -and $browserState.Process.HasExited) { break }
         Update-LaunchWindow
         if (-not $listener.Pending()) { Start-Sleep -Milliseconds 50; continue }
-        $client = $listener.AcceptTcpClient()
+        $client = $null
+        try {
+            $client = $listener.AcceptTcpClient()
+        } catch [System.Net.Sockets.SocketException] {
+            # A browser can drop a speculative connection between Pending() and Accept().
+            Start-Sleep -Milliseconds 20
+        } catch [System.ObjectDisposedException] {
+            break
+        }
+        if (-not $client) { continue }
         $stream = $null
         $reader = $null
         try {
@@ -414,6 +449,21 @@ try {
             }
         } catch [System.IO.IOException] {
             # A browser may close a speculative connection without sending a request.
+        } catch {
+            # A damaged CMD (edited marker, truncated save) must not end the presentation:
+            # answer with a page that explains the fix and keep serving.
+            $readError = $_.Exception.Message
+            if ($readError -ne $script:lastReadError) {
+                $script:lastReadError = $readError
+                Write-Host ''
+                Write-Host '页面读取失败，放映服务继续运行；修复文件后刷新即可恢复。'
+                Write-Host $readError
+            }
+            if ($stream) {
+                try {
+                    Send-Response $stream 500 'Internal Server Error' (New-PresentationErrorPage $readError) ($headOnly -eq $true)
+                } catch {}
+            }
         } finally {
             if ($reader) { $reader.Dispose() }
             if ($stream) { $stream.Dispose() }

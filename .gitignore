@@ -1,0 +1,12 @@
+# Built by tools/package_local.py and published by the release workflow.
+/dist/
+
+# Test tooling installed by `npm ci`.
+/node_modules/
+
+# Python bytecode from the build scripts.
+__pycache__/
+
+# Local editor/OS noise.
+.DS_Store
+Thumbs.db

@@ -1,16 +1,28 @@
-name: Publish or Update v1.3 Release
+name: Publish or Update Release
 
 on:
   push:
     branches: [main]
-    paths: [HIT-HTML.html, LICENSE, licenses/**, docs/THIRD_PARTY_NOTICES.md, docs/RELEASE_v1.3.md, .github/workflows/release.yml, tools/local/**, tools/package_local.py, tests/launcher-browser.cjs, tests/web-presenter-fullscreen.cjs, tests/web-swap.cjs, tests/native-displays.sh]
+    paths:
+      - HIT-HTML.html
+      - LICENSE
+      - licenses/**
+      - docs/THIRD_PARTY_NOTICES.md
+      - docs/RELEASE_v*.md
+      - src/**
+      - tools/**
+      - tests/**
+      - package.json
+      - package-lock.json
+      - .github/**
   workflow_dispatch:
 
 permissions:
   contents: write
 
+# The release tag comes from <meta name="version">, so this group stays version-free.
 concurrency:
-  group: release-v1.3
+  group: release
   cancel-in-progress: false
 
 jobs:
@@ -20,51 +32,59 @@ jobs:
   release:
     needs: verify-windows
     runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      HIT_POWERSHELL_EXECUTABLE: pwsh
+      HIT_VERIFY_LAUNCHER_SCREENS: '1'
+      POWERSHELL_TELEMETRY_OPTOUT: '1'
+      POWERSHELL_UPDATECHECK: 'Off'
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - name: Verify repeated web swaps with delayed window placement
-        run: node tests/web-swap.cjs
+
+      - uses: ./.github/actions/setup-deck-env
+
+      - name: Read the deck version
+        run: echo "VERSION=$(python3 tools/version.py)" >> "$GITHUB_ENV"
+
+      - name: Verify the committed deck matches src/
+        run: python3 tools/build_html.py --check
+
+      - name: Run the browser-free test suite
+        run: npm test
+
+      - name: Verify print/PDF export
+        run: npm run test:print
+
       - name: Build single-file local launcher
         run: python3 tools/package_local.py
+
       - name: Verify screen placement, fullscreen and local shutdown
-        env:
-          HIT_POWERSHELL_EXECUTABLE: pwsh
-          HIT_VERIFY_LAUNCHER_SCREENS: '1'
-          POWERSHELL_TELEMETRY_OPTOUT: '1'
-          POWERSHELL_UPDATECHECK: 'Off'
         run: |
-          npm install playwright
-          npx playwright install --with-deps chromium
-          sudo apt-get install -y xserver-xorg-core xserver-xorg-video-dummy x11-utils x11-xserver-utils openbox
           bash tests/native-displays.sh
           node tests/local-launcher.cjs
           node tests/launcher-browser.cjs
-      - name: Upload, verify and publish v1.3
+
+      - name: Upload, verify and publish the release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          if gh release view v1.3 > /dev/null 2>&1; then
-            gh release upload v1.3 HIT-HTML.html dist/HIT-HTML-local.cmd --clobber
+          test -f "docs/RELEASE_v$VERSION.md"
+          if gh release view "v$VERSION" > /dev/null 2>&1; then
+            gh release upload "v$VERSION" HIT-HTML.html dist/HIT-HTML-local.cmd --clobber
           else
-            gh release create v1.3 HIT-HTML.html dist/HIT-HTML-local.cmd \
+            gh release create "v$VERSION" HIT-HTML.html dist/HIT-HTML-local.cmd \
               --target "$GITHUB_SHA" \
-              --title "HIT-HTML v1.3" \
-              --notes-file docs/RELEASE_v1.3.md \
+              --title "HIT-HTML v$VERSION" \
+              --notes-file "docs/RELEASE_v$VERSION.md" \
               --draft
           fi
-          gh release download v1.3 \
+          gh release download "v$VERSION" \
             --pattern HIT-HTML.html \
             --pattern HIT-HTML-local.cmd \
-            --dir "$RUNNER_TEMP/release-v1.3"
-          cmp HIT-HTML.html "$RUNNER_TEMP/release-v1.3/HIT-HTML.html"
-          cmp dist/HIT-HTML-local.cmd "$RUNNER_TEMP/release-v1.3/HIT-HTML-local.cmd"
-          test "$(gh release view v1.3 --json assets --jq '.assets | map(.name) | sort | join(",")')" = 'HIT-HTML-local.cmd,HIT-HTML.html'
-          gh release edit v1.3 --draft=false --latest --notes-file docs/RELEASE_v1.3.md
-
-
-
+            --dir "$RUNNER_TEMP/release-v$VERSION"
+          cmp HIT-HTML.html "$RUNNER_TEMP/release-v$VERSION/HIT-HTML.html"
+          cmp dist/HIT-HTML-local.cmd "$RUNNER_TEMP/release-v$VERSION/HIT-HTML-local.cmd"
+          test "$(gh release view "v$VERSION" --json assets --jq '.assets | map(.name) | sort | join(",")')" = 'HIT-HTML-local.cmd,HIT-HTML.html'
+          gh release edit "v$VERSION" --draft=false --latest --notes-file "docs/RELEASE_v$VERSION.md"

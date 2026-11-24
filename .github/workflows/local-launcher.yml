@@ -1,23 +1,38 @@
 name: Verify Local Launcher
 
 on:
+  pull_request:
+    paths:
+      - HIT-HTML.html
+      - src/**
+      - tools/**
+      - tests/**
+      - package.json
+      - package-lock.json
+      - .github/actions/**
+      - .github/workflows/local-launcher.yml
   push:
     branches: [main]
     paths:
       - HIT-HTML.html
-      - tools/local/**
-      - tools/package_local.py
-      - tests/local-launcher.cjs
-      - tests/launcher-browser.cjs
-      - tests/console-quit.ps1
-      - tests/explorer-source.ps1
+      - src/**
+      - tools/**
+      - tests/**
+      - package.json
+      - package-lock.json
+      - .github/actions/**
       - .github/workflows/local-launcher.yml
   workflow_dispatch:
   workflow_call:
 
+concurrency:
+  group: local-launcher-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   windows:
     runs-on: windows-latest
+    timeout-minutes: 30
     env:
       POWERSHELL_TELEMETRY_OPTOUT: '1'
       POWERSHELL_UPDATECHECK: 'Off'
@@ -26,17 +41,30 @@ jobs:
         powershell: [powershell.exe, pwsh.exe]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+
+      - uses: ./.github/actions/setup-deck-env
         with:
-          node-version: 20
+          system: none
+
+      - name: Verify the committed deck matches src/
+        run: python tools/build_html.py --check
+
+      - name: Verify deck content and release metadata
+        run: node tests/deck-structure.cjs
+
       - name: Build single-file launcher
         run: python tools/package_local.py
-      - name: Install browser test client
-        run: npm install playwright
+
+      - name: Verify the launcher survives a damaged CMD
+        env:
+          HIT_POWERSHELL_EXECUTABLE: ${{ matrix.powershell }}
+        run: node tests/local-launcher-offline.cjs
+
       - name: Verify Windows PowerShell launcher and native quit keys
         env:
           HIT_POWERSHELL_EXECUTABLE: ${{ matrix.powershell }}
         run: node tests/local-launcher.cjs
+
       - name: Verify managed browser shutdown and isolation
         env:
           HIT_POWERSHELL_EXECUTABLE: ${{ matrix.powershell }}

@@ -1,0 +1,42 @@
+name: Set up presentation test environment
+description: Install Node, npm dependencies, Playwright Chromium and (on Linux) the X server and CJK fonts the deck tests need.
+
+inputs:
+  node-version:
+    description: Node.js version used by the deck tooling.
+    default: '20'
+  system:
+    description: full = X server + CJK fonts + window manager (Linux only); none = browser only.
+    default: full
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: npm
+
+    - name: Install npm dependencies
+      shell: bash
+      run: npm ci --no-audit --no-fund
+
+    - name: Install Chromium and its system libraries
+      if: runner.os == 'Linux'
+      shell: bash
+      run: npx playwright install --with-deps chromium
+
+    - name: Install Chromium
+      if: runner.os != 'Linux'
+      shell: bash
+      run: npx playwright install chromium
+
+    - name: Install X server, window manager and CJK fonts
+      if: runner.os == 'Linux' && inputs.system == 'full'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends \
+          fonts-noto-cjk fonts-noto-color-emoji \
+          xserver-xorg-core xserver-xorg-video-dummy x11-utils x11-xserver-utils openbox
+        fc-cache -f

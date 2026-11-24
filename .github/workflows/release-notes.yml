@@ -1,10 +1,10 @@
-name: Update v1.3 Release Notes
+name: Update Release Notes
 
 on:
   push:
     branches: [main]
     paths:
-      - docs/RELEASE_v1.3.md
+      - docs/RELEASE_v*.md
       - .github/workflows/release-notes.yml
   workflow_dispatch:
 
@@ -12,21 +12,26 @@ permissions:
   contents: write
 
 concurrency:
-  group: release-notes-v1.3
+  group: release-notes
   cancel-in-progress: false
 
 jobs:
   release-notes:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+
+      - name: Read the deck version
+        run: echo "VERSION=$(python3 tools/version.py)" >> "$GITHUB_ENV"
+
       - name: Update published release notes
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          if gh release view v1.3 > /dev/null 2>&1; then
-            gh release edit v1.3 --notes-file docs/RELEASE_v1.3.md
+          if gh release view "v$VERSION" > /dev/null 2>&1; then
+            gh release edit "v$VERSION" --notes-file "docs/RELEASE_v$VERSION.md"
           else
-            echo "v1.3 will be created with these notes by release.yml."
+            echo "v$VERSION will be created with these notes by release.yml."
           fi

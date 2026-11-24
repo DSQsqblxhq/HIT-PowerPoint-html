@@ -1,46 +1,66 @@
-name: Update Preview Screenshots
+name: Verify Deck and Update Preview Screenshots
 
 on:
+  pull_request:
+    paths:
+      - HIT-HTML.html
+      - src/**
+      - tools/**
+      - tests/**
+      - package.json
+      - package-lock.json
+      - .github/**
   push:
     branches: [main]
-  pull_request:
-    paths: [HIT-HTML.html, tests/**, .github/workflows/preview.yml]
+    paths:
+      - HIT-HTML.html
+      - src/**
+      - tools/**
+      - tests/**
+      - package.json
+      - package-lock.json
+      - .github/**
   workflow_dispatch:
 
+concurrency:
+  group: preview-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  screenshot:
+  verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install CJK fonts
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y fonts-noto-cjk fonts-noto-color-emoji xserver-xorg-core xserver-xorg-video-dummy x11-utils x11-xserver-utils openbox
-          fc-cache -f
+      - uses: ./.github/actions/setup-deck-env
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
+      - name: Verify the committed deck matches src/
+        run: python3 tools/build_html.py --check
 
-      - name: Verify template styles refresh without reloading
-        run: node tests/template-style-refresh.cjs
+      - name: Run the browser-free test suite
+        run: npm test
 
-      - name: Verify repeated web swaps with delayed window placement
-        run: node tests/web-swap.cjs
-
-      - name: Install Playwright
-        run: |
-          npm install playwright
-          npx playwright install chromium
+      - name: Verify print/PDF export
+        run: npm run test:print
 
       - name: Verify HTTPS automatic audience fullscreen
         run: bash tests/native-displays.sh
 
       - name: Verify presenter placement on secondary screens
         run: node tests/presenter-multiscreen.cjs
+
+      - name: Verify screen placement, fullscreen and local shutdown
+        env:
+          HIT_POWERSHELL_EXECUTABLE: pwsh
+          HIT_VERIFY_LAUNCHER_SCREENS: '1'
+          POWERSHELL_TELEMETRY_OPTOUT: '1'
+          POWERSHELL_UPDATECHECK: 'Off'
+        run: |
+          python3 tools/package_local.py
+          node tests/local-launcher.cjs
 
       - name: Take screenshots
         run: |
@@ -79,7 +99,8 @@ jobs:
             await page.locator('#presenter-layout').click();
             await page.evaluate(()=>document.fonts.ready);
             await page.waitForFunction(()=>document.getElementById('preview-current-stage').childElementCount>0&&document.getElementById('preview-next-stage').childElementCount>0);
-            assert.equal(await page.locator('#presenter-counter').textContent(),'4 / 9');
+            const total=await page.evaluate(()=>document.querySelectorAll('#stage > .slide').length);
+            assert.equal(await page.locator('#presenter-counter').textContent(),`4 / ${total}`);
             assert.equal(new URL(page.url()).searchParams.has('hit-session'),false);
             await page.locator('#presenter-layout').blur();
             await page.screenshot({path:'docs/screenshots/presenter.png',animations:'disabled'});
@@ -91,9 +112,8 @@ jobs:
           NODE
 
       - name: Commit screenshots
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "Update preview screenshots"
           file_pattern: "docs/screenshots/*.png"
-
