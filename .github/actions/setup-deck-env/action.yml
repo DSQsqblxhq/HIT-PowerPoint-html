@@ -21,15 +21,12 @@ runs:
       shell: bash
       run: npm ci --no-audit --no-fund
 
+    # Windows tests drive the installed Edge/Chrome through HIT_CHROME_EXECUTABLE, so only
+    # Linux needs Playwright's bundled browser.
     - name: Install Chromium and its system libraries
       if: runner.os == 'Linux'
       shell: bash
       run: npx playwright install --with-deps chromium
-
-    - name: Install Chromium
-      if: runner.os != 'Linux'
-      shell: bash
-      run: npx playwright install chromium
 
     - name: Install X server, window manager and CJK fonts
       if: runner.os == 'Linux' && inputs.system == 'full'

@@ -25,8 +25,10 @@ on:
   workflow_dispatch:
   workflow_call:
 
+# A reusable call from release.yml and the direct push trigger must not cancel each
+# other: the caller is part of github.workflow, so each run gets its own group.
 concurrency:
-  group: local-launcher-${{ github.ref }}
+  group: local-launcher-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

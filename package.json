@@ -9,10 +9,11 @@
     "test:structure": "node tests/deck-structure.cjs",
     "test:swap": "node tests/web-swap.cjs",
     "test:style": "node tests/template-style-refresh.cjs",
+    "test:lock": "node tests/lockfile.cjs",
     "test:offline": "node tests/local-launcher-offline.cjs",
     "test:print": "node tests/print-export.cjs",
     "test:presenter": "node tests/presenter-multiscreen.cjs",
-    "test": "npm run check:html && npm run test:structure && npm run test:swap && npm run test:style"
+    "test": "npm run check:html && npm run test:lock && npm run test:structure && npm run test:swap && npm run test:style"
   },
   "devDependencies": {
     "playwright": "1.65.1"
