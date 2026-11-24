@@ -95,20 +95,6 @@
 
 详细操作、CMD 编辑方法及完整快捷键见 [使用指南](docs/USAGE.md)。
 
-## 维护仓库
-
-样式与工作台脚本以可读源码放在 `src/`，`HIT-HTML.html` 中对应的代码块由脚本生成，避免手工编辑压缩代码：
-
-```bash
-python tools/build_html.py      # 由 src/ 重新生成内联的样式与脚本
-python tools/package_local.py   # 生成 dist/HIT-HTML-local.cmd（含解码回环校验）
-npm ci && npm test              # 核对 HTML 与 src/ 一致，并运行与浏览器无关的测试
-```
-
-`package-lock.json` 必须用公共 registry 生成（`npm install --package-lock-only --registry=https://registry.npmjs.org`）：内网镜像地址会让 CI 的 `npm ci` 失败，`npm test` 会检查这一点。
-
-`npm run test:print` 需要 Playwright 的 Chromium。版本号以 `HIT-HTML.html` 的 `<meta name="version">` 为唯一来源：发布流程据此选择 `docs/RELEASE_v<版本>.md` 和 release 标签，README 与使用指南的下载链接固定在 `releases/latest`，因此发版不需要改动文档。
-
 ## 来源与许可
 
 - 模板参考：[yhao-z/HIT-PowerPoint](https://github.com/yhao-z/HIT-PowerPoint)。
